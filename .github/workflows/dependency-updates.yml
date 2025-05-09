@@ -9,6 +9,9 @@ jobs:
   update-dependencies:
     name: Check & Update Dependencies
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       
@@ -25,58 +28,73 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      # 보안 업데이트 체크 및 PR 생성
-      - name: Check for security updates
-        uses: dependabot/dependabot-core@v3
-        with:
-          package-manager: "npm"
-          directory: "/"
-          target-branch: "main"
-          labels: "security"
-          
-      # 패치 버전 업데이트 체크
-      - name: Check for patch updates
-        id: check-updates
+      # 보안 취약점 체크
+      - name: Check for vulnerabilities
+        id: audit
         run: |
-          # 패치 업데이트 확인 및 적용
+          AUDIT_OUTPUT=$(pnpm audit --json || true)
+          echo "AUDIT_OUTPUT<<EOF" >> $GITHUB_ENV
+          echo "$AUDIT_OUTPUT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          if [[ $AUDIT_OUTPUT == *"vulnerabilities"* ]]; then
+            echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
+          fi
+          
+      # 패치 업데이트 체크 및 적용
+      - name: Check and apply patch updates
+        id: update
+        run: |
+          # 현재 package.json 백업
+          cp package.json package.json.backup
+          
+          # 패치 업데이트 시도
           pnpm up --latest-patch
           
           # 변경사항이 있는지 확인
-          if [[ $(git status --porcelain) ]]; then
+          if ! cmp -s package.json package.json.backup; then
             echo "has_updates=true" >> $GITHUB_OUTPUT
+            # 변경된 패키지 목록 저장
+            diff package.json package.json.backup > updates.diff || true
           fi
-      
-      # 패치 업데이트가 있으면 PR 생성
-      - name: Create Pull Request for patch updates
-        if: steps.check-updates.outputs.has_updates == 'true'
+
+      # PR 생성 (보안 취약점이나 패치 업데이트가 있을 경우)
+      - name: Create Pull Request
+        if: steps.audit.outputs.has_vulnerabilities == 'true' || steps.update.outputs.has_updates == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
-          commit-message: "chore: update patch versions"
-          title: "⬆️ 패치 버전 업데이트"
+          commit-message: "chore: update dependencies"
+          title: "⬆️ 의존성 업데이트"
           body: |
-            패키지들의 버그 수정 업데이트가 있습니다.
+            자동 의존성 업데이트가 실행되었습니다.
             
-            ## 자동 업데이트 내용
-            - 버그 수정 (패치) 버전 업데이트만 포함
-            - 기존 기능의 호환성은 유지됩니다
+            ## 업데이트 내용
+            ${{ env.AUDIT_OUTPUT }}
+            
+            ## 변경된 패키지
+            ```diff
+            $(cat updates.diff || echo "패치 업데이트 없음")
+            ```
             
             ## 체크리스트
             - [ ] 테스트 코드 실행
             - [ ] 개발 환경에서 테스트
-          branch: "chore/patch-updates"
-          labels: "dependencies,patch-update"
-          
-      # 메이저/마이너 업데이트가 있으면 이슈 생성
+          branch: "chore/dependency-updates"
+          labels: |
+            dependencies
+            automated-pr
+      
+      # 메이저/마이너 업데이트 확인
       - name: Check for major/minor updates
+        id: check-major-minor
         run: |
-          # outdated 정보를 JSON으로 저장
-          pnpm outdated --json > outdated.json
-          
-          # 메이저/마이너 업데이트가 있으면 이슈 생성
-          if [[ -s outdated.json ]]; then
-            echo "::set-output name=has_updates::true"
+          OUTDATED=$(pnpm outdated --json)
+          if [[ ! -z "$OUTDATED" ]]; then
+            echo "$OUTDATED" > outdated.json
+            echo "has_updates=true" >> $GITHUB_OUTPUT
           fi
       
+      # 메이저/마이너 업데이트 이슈 생성
       - name: Create Issue for major/minor updates
         if: steps.check-major-minor.outputs.has_updates == 'true'
         uses: peter-evans/create-issue-from-file@v4
