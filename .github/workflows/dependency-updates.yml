@@ -33,23 +33,19 @@ jobs:
         id: audit
         run: |
           AUDIT_OUTPUT=$(pnpm audit --json || true)
-          echo "AUDIT_OUTPUT<<EOF" >> $GITHUB_ENV
-          echo "$AUDIT_OUTPUT" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          
           if [[ $AUDIT_OUTPUT == *"vulnerabilities"* ]]; then
             echo "has_vulnerabilities=true" >> $GITHUB_OUTPUT
           fi
           
-      # 패치 업데이트 체크 및 적용
-      - name: Check and apply patch updates
+      # 업데이트 체크 및 적용
+      - name: Check and apply updates
         id: update
         run: |
           # 현재 package.json 백업
           cp package.json package.json.backup
           
-          # 패치 업데이트 시도 (patch 버전만 업데이트)
-          pnpm update --interactive=false --recursive --latest "**@patch"
+          # 업데이트 시도
+          pnpm update --recursive
           
           # 변경사항이 있는지 확인
           if ! cmp -s package.json package.json.backup; then
@@ -58,7 +54,7 @@ jobs:
             diff package.json package.json.backup > updates.diff || true
           fi
 
-      # PR 생성 (보안 취약점이나 패치 업데이트가 있을 경우)
+      # PR 생성 (변경사항이 있을 경우)
       - name: Create Pull Request
         if: steps.audit.outputs.has_vulnerabilities == 'true' || steps.update.outputs.has_updates == 'true'
         uses: peter-evans/create-pull-request@v5
@@ -68,12 +64,9 @@ jobs:
           body: |
             자동 의존성 업데이트가 실행되었습니다.
             
-            ## 업데이트 내용
-            ${{ env.AUDIT_OUTPUT }}
-            
             ## 변경된 패키지
             ```diff
-            $(cat updates.diff || echo "패치 업데이트 없음")
+            $(cat updates.diff || echo "변경사항 없음")
             ```
             
             ## 체크리스트
