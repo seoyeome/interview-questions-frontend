@@ -52,16 +52,17 @@ jobs:
         run: |
           # 현재 package.json 백업
           cp package.json package.json.backup
+          cp pnpm-lock.yaml pnpm-lock.yaml.backup
           
           # 업데이트 시도
           pnpm update --recursive
           
           # 변경사항이 있는지 확인
-          if ! cmp -s package.json package.json.backup; then
+          if ! cmp -s pnpm-lock.yaml pnpm-lock.yaml.backup; then
             echo "has_updates=true" >> $GITHUB_OUTPUT
             # 변경된 패키지 목록을 환경 변수로 저장
             echo "PACKAGE_DIFF<<EOF" >> $GITHUB_ENV
-            diff package.json package.json.backup || true >> $GITHUB_ENV
+            diff -U 0 pnpm-lock.yaml.backup pnpm-lock.yaml | grep '^[-+]  ' | grep -v '^[-+]  resolution: ' >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
           fi
 
