@@ -50,8 +50,10 @@ jobs:
           # 변경사항이 있는지 확인
           if ! cmp -s package.json package.json.backup; then
             echo "has_updates=true" >> $GITHUB_OUTPUT
-            # 변경된 패키지 목록 저장
-            diff package.json package.json.backup > updates.diff || true
+            # 변경된 패키지 목록을 환경 변수로 저장
+            echo "PACKAGE_DIFF<<EOF" >> $GITHUB_ENV
+            diff package.json package.json.backup || true >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
           fi
 
       # PR 생성 (변경사항이 있을 경우)
@@ -66,7 +68,7 @@ jobs:
             
             ## 변경된 패키지
             ```diff
-            $(cat updates.diff || echo "변경사항 없음")
+            ${{ env.PACKAGE_DIFF }}
             ```
             
             ## 체크리스트
