@@ -12,8 +12,17 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Setup Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -61,6 +70,7 @@ jobs:
         if: steps.audit.outputs.has_vulnerabilities == 'true' || steps.update.outputs.has_updates == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore: update dependencies"
           title: "⬆️ 의존성 업데이트"
           body: |
@@ -75,6 +85,8 @@ jobs:
             - [ ] 테스트 코드 실행
             - [ ] 개발 환경에서 테스트
           branch: "chore/dependency-updates"
+          base: "main"
+          delete-branch: true
           labels: |
             dependencies
             automated-pr
