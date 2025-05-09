@@ -90,14 +90,14 @@ jobs:
           labels: |
             dependencies
             automated-pr
-      
+
       # 메이저/마이너 업데이트 확인
       - name: Check for major/minor updates
         id: check-major-minor
         run: |
-          OUTDATED=$(pnpm outdated --json)
-          if [[ ! -z "$OUTDATED" ]]; then
-            echo "$OUTDATED" > outdated.json
+          # outdated 정보를 파일로 저장
+          pnpm outdated --json > outdated.json || true
+          if [ -s outdated.json ]; then
             echo "has_updates=true" >> $GITHUB_OUTPUT
           fi
       
