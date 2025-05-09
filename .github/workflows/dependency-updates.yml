@@ -48,8 +48,8 @@ jobs:
           # 현재 package.json 백업
           cp package.json package.json.backup
           
-          # 패치 업데이트 시도
-          pnpm up --latest-patch
+          # 패치 업데이트 시도 (patch 버전만 업데이트)
+          pnpm update --interactive=false --recursive --latest "**@patch"
           
           # 변경사항이 있는지 확인
           if ! cmp -s package.json package.json.backup; then
