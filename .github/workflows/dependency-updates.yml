@@ -1,0 +1,86 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 매주 월요일마다 실행
+  workflow_dispatch:      # 수동으로도 실행 가능
+
+jobs:
+  update-dependencies:
+    name: Check & Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.4
+      
+      - name: Install dependencies
+        run: pnpm install
+
+      # 보안 업데이트 체크 및 PR 생성
+      - name: Check for security updates
+        uses: dependabot/dependabot-core@v3
+        with:
+          package-manager: "npm"
+          directory: "/"
+          target-branch: "main"
+          labels: "security"
+          
+      # 패치 버전 업데이트 체크
+      - name: Check for patch updates
+        id: check-updates
+        run: |
+          # 패치 업데이트 확인 및 적용
+          pnpm up --latest-patch
+          
+          # 변경사항이 있는지 확인
+          if [[ $(git status --porcelain) ]]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+          fi
+      
+      # 패치 업데이트가 있으면 PR 생성
+      - name: Create Pull Request for patch updates
+        if: steps.check-updates.outputs.has_updates == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "chore: update patch versions"
+          title: "⬆️ 패치 버전 업데이트"
+          body: |
+            패키지들의 버그 수정 업데이트가 있습니다.
+            
+            ## 자동 업데이트 내용
+            - 버그 수정 (패치) 버전 업데이트만 포함
+            - 기존 기능의 호환성은 유지됩니다
+            
+            ## 체크리스트
+            - [ ] 테스트 코드 실행
+            - [ ] 개발 환경에서 테스트
+          branch: "chore/patch-updates"
+          labels: "dependencies,patch-update"
+          
+      # 메이저/마이너 업데이트가 있으면 이슈 생성
+      - name: Check for major/minor updates
+        run: |
+          # outdated 정보를 JSON으로 저장
+          pnpm outdated --json > outdated.json
+          
+          # 메이저/마이너 업데이트가 있으면 이슈 생성
+          if [[ -s outdated.json ]]; then
+            echo "::set-output name=has_updates::true"
+          fi
+      
+      - name: Create Issue for major/minor updates
+        if: steps.check-major-minor.outputs.has_updates == 'true'
+        uses: peter-evans/create-issue-from-file@v4
+        with:
+          title: "📦 메이저/마이너 버전 업데이트 가능"
+          content-filepath: outdated.json
+          labels: "dependencies,needs-review" 

@@ -1,0 +1,113 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+:root {
+  --background: #ffffff;
+  --card-background: #ffffff;
+  --card-hover: #f8fafc;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --input-background: #f8fafc;
+}
+
+[data-theme='dark'] {
+  --background: #0f172a;
+  --card-background: #1e293b;
+  --card-hover: #2d3a4f;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --border-color: #334155;
+  --input-background: #1e293b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  
+  body {
+    @apply font-sans bg-[var(--background)] text-[var(--text-primary)] transition-colors duration-200;
+  }
+
+  input, textarea {
+    @apply bg-[var(--input-background)] border-[var(--input-border)];
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-[var(--card-background)] rounded-3xl shadow-lg p-6;
+  }
+
+  .input {
+    @apply w-full p-4 rounded-2xl border border-[var(--border-color)] 
+           bg-[var(--input-background)] text-[var(--text-primary)]
+           placeholder:text-[var(--text-secondary)] resize-none
+           focus:outline-none focus:ring-2 focus:ring-blue-500;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-xl transition-colors duration-200
+           bg-[var(--card-background)] hover:bg-[var(--card-hover)]
+           border border-[var(--border-color)];
+  }
+
+  .btn-primary {
+    @apply bg-blue-500 hover:bg-blue-600 text-white border-transparent;
+  }
+
+  .toss-card {
+    @apply rounded-3xl shadow-xl p-8 transition-colors duration-200;
+    background: #fff;
+  }
+  [data-theme='dark'] .toss-card {
+    background: #1e293b;
+  }
+  .toss-input {
+    @apply w-full p-4 rounded-2xl border border-[#e2e8f0] bg-[#f1f5f9] text-[#1e293b] placeholder-[#94a3b8] resize-none focus:outline-none focus:ring-2 focus:ring-[#3182f6] transition-all;
+  }
+  [data-theme='dark'] .toss-input {
+    @apply border-[#334155] bg-[#1e293b] text-[#f8fafc] placeholder-[#64748b];
+  }
+  .toss-btn {
+    @apply w-full py-3 rounded-2xl bg-[#3182f6] text-white font-bold shadow-md hover:bg-[#2563eb] transition-all;
+  }
+}
