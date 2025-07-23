@@ -76,13 +76,6 @@ src/
 - `.npmrc` - pnpm 설정
 - `eslint.config.mjs` - ESLint 설정
 
-## 🤝 기여하기
-
-1. 이슈 생성 또는 기존 이슈 확인
-2. `feature/기능이름` 또는 `fix/버그이름` 형식으로 브랜치 생성
-3. 변경사항 커밋
-4. Pull Request 생성
-
 ## 📝 라이선스
 
 이 프로젝트는 MIT 라이선스를 따릅니다.
