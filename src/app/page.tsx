@@ -1,27 +1,41 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 
-const categories = [
-  { name: 'CS', sub: ['자료구조', '알고리즘', '운영체제', '네트워크'] },
-  { name: '백엔드', sub: ['Spring', 'Node.js', 'DB', 'API 설계'] },
-  { name: 'DB', sub: ['RDBMS', 'NoSQL', '인덱스', '트랜잭션'] },
-  { name: '네트워크', sub: ['HTTP', 'TCP/IP', 'OSI 7계층'] },
-];
+// API 응답 타입 정의
+interface Category {
+  id: string;
+  name: string;
+}
 
-// 샘플 질문/해설 데이터
-const questions = [
-  { category: 'CS', sub: '자료구조', question: '스택과 큐의 차이점을 설명하세요.', explanation: '스택은 LIFO, 큐는 FIFO 구조입니다.' },
-  { category: 'CS', sub: '알고리즘', question: '정렬 알고리즘의 종류와 특징을 설명하세요.', explanation: '버블, 선택, 삽입, 퀵, 병합 등이 있습니다.' },
-  { category: '백엔드', sub: 'Spring', question: 'Spring DI란 무엇인가요?', explanation: 'DI는 의존성 주입으로, 객체 간 결합도를 낮춥니다.' },
-  { category: 'DB', sub: 'RDBMS', question: '트랜잭션의 ACID란?', explanation: '원자성, 일관성, 고립성, 지속성을 의미합니다.' },
-  { category: '네트워크', sub: 'HTTP', question: 'HTTP와 HTTPS의 차이점은?', explanation: 'HTTPS는 SSL/TLS로 암호화된 HTTP입니다.' },
-  // ...더 추가 가능
-];
+interface SubCategory {
+  id: string;
+  name: string;
+  categoryId: string;
+}
+
+interface Question {
+  id: string;
+  content: string;
+  difficulty: string;
+  subCategoryId: string;
+  explanation?: string;
+}
 
 export default function Home() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { theme, setTheme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  // API 데이터 상태
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI 상태
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [selectedSub, setSelectedSub] = useState('전체');
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
@@ -29,15 +43,59 @@ export default function Home() {
   const [userAnswer, setUserAnswer] = useState('');
   const [showExplanation, setShowExplanation] = useState(false);
 
+  // 백엔드 API에서 데이터 가져오기
   useEffect(() => {
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setIsDarkMode(isDark);
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // 카테고리 데이터 가져오기
+        const categoryRes = await fetch('/api/v1/categories');
+        if (!categoryRes.ok) {
+          console.error('카테고리 데이터를 불러오는데 실패했습니다');
+          return;
+        }
+        const categoryData = await categoryRes.json();
+        setCategories(categoryData);
+        
+        // 서브카테고리 데이터 가져오기
+        const subCategoryRes = await fetch('/api/v1/sub-categories');
+        if (!subCategoryRes.ok) {
+          console.error('서브카테고리 데이터를 불러오는데 실패했습니다');
+          return;
+        }
+        const subCategoryData = await subCategoryRes.json();
+        setSubCategories(subCategoryData);
+        
+        // 질문 데이터 가져오기
+        const questionRes = await fetch('/api/v1/questions');
+        if (!questionRes.ok) {
+          console.error('질문 데이터를 불러오는데 실패했습니다');
+          return;
+        }
+        const questionData = await questionRes.json();
+        setQuestions(questionData);
+      } catch (err) {
+        console.error('데이터 로딩 중 오류 발생:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
   }, []);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const isDarkMode = theme === 'dark' || (theme === 'system' && systemTheme === 'dark');
+
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.setAttribute('data-theme', !isDarkMode ? 'dark' : 'light');
+    setTheme(isDarkMode ? 'light' : 'dark');
   };
 
   // 카테고리 변경 시 세부 카테고리도 전체로 초기화
@@ -59,19 +117,42 @@ export default function Home() {
 
   // 질문 생성 (랜덤)
   const generateQuestion = () => {
-    let filtered = questions;
-    if (selectedCategory !== '전체') {
-      filtered = filtered.filter(q => q.category === selectedCategory);
-    }
-    if (selectedSub !== '전체') {
-      filtered = filtered.filter(q => q.sub === selectedSub);
-    }
-    if (filtered.length > 0) {
-      const picked = filtered[Math.floor(Math.random() * filtered.length)];
-      setCurrentQuestion(picked.question);
-      setCurrentExplanation(picked.explanation);
-      setShowExplanation(false);
-      setUserAnswer('');
+    // API 데이터가 있으면 API 데이터 사용
+    if (questions.length > 0) {
+      let filtered = [...questions];
+      
+      if (selectedCategory !== '전체') {
+        // 선택된 카테고리의 ID 찾기
+        const categoryId = categories.find(c => c.name === selectedCategory)?.id;
+        if (categoryId) {
+          // 카테고리 ID로 서브카테고리 필터링 후, 해당 서브카테고리에 속한 질문 필터링
+          const subCategoryIds = subCategories
+            .filter(s => s.categoryId === categoryId)
+            .map(s => s.id);
+          filtered = filtered.filter(q => subCategoryIds.includes(q.subCategoryId));
+        }
+      }
+      
+      if (selectedSub !== '전체') {
+        // 선택된 서브카테고리의 ID 찾기
+        const subCategoryId = subCategories.find(s => s.name === selectedSub)?.id;
+        if (subCategoryId) {
+          filtered = filtered.filter(q => q.subCategoryId === subCategoryId);
+        }
+      }
+      
+      if (filtered.length > 0) {
+        const picked = filtered[Math.floor(Math.random() * filtered.length)];
+        setCurrentQuestion(picked.content);
+        setCurrentExplanation(picked.explanation || null);
+        setShowExplanation(false);
+        setUserAnswer('');
+      } else {
+        setCurrentQuestion('해당 카테고리에 질문이 없습니다');
+        setCurrentExplanation(null);
+        setShowExplanation(false);
+        setUserAnswer('');
+      }
     } else {
       setCurrentQuestion('질문을 불러오세요');
       setCurrentExplanation(null);
@@ -84,10 +165,18 @@ export default function Home() {
   const handleShowExplanation = () => setShowExplanation((v) => !v);
 
   // 카테고리/세부카테고리 옵션
-  const categoryOptions = ['전체', ...categories.map(c => c.name)];
+  const categoryOptions = categories.length > 0 
+    ? ['전체', ...categories.map(c => c.name)] 
+    : ['전체'];
+  
   const subOptions = selectedCategory === '전체'
     ? ['전체']
-    : ['전체', ...(categories.find(c => c.name === selectedCategory)?.sub || [])];
+    : ['전체', ...subCategories
+        .filter(s => {
+          const categoryId = categories.find(c => c.name === selectedCategory)?.id;
+          return s.categoryId === categoryId;
+        })
+        .map(s => s.name)];
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[#0f172a]' : 'bg-[#fff]'} flex items-center justify-center`}>
@@ -114,6 +203,24 @@ export default function Home() {
             )}
           </button>
         </div>
+
+        {/* 로딩 상태 표시 */}
+        {loading && (
+          <div className={`rounded-3xl shadow-xl p-8 text-center ${
+            isDarkMode ? 'bg-[#1e293b]/80 text-white' : 'bg-white text-[#1e293b]'
+          }`}>
+            데이터를 불러오는 중입니다...
+          </div>
+        )}
+
+        {/* 에러 상태 표시 */}
+        {error && (
+          <div className={`rounded-3xl shadow-xl p-8 text-center ${
+            isDarkMode ? 'bg-[#1e293b]/80 text-red-400' : 'bg-white text-red-600'
+          }`}>
+            {error}
+          </div>
+        )}
 
         {/* 질문 카드 */}
         <section className={`rounded-3xl shadow-xl p-8 transition-colors ${
@@ -205,7 +312,7 @@ export default function Home() {
             } disabled:opacity-60`}
             disabled={!currentQuestion || currentQuestion === '질문을 불러오세요'}
           >
-            답변 저장하기
+            답변 확인하기
           </button>
         </section>
       </main>
