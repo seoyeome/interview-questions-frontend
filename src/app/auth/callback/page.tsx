@@ -11,10 +11,14 @@ function AuthCallbackContent() {
     const token = searchParams.get('token');
 
     if (token) {
-      // JWT 토큰 저장
+      // JWT 토큰 localStorage에 저장
       localStorage.setItem('token', token);
-      // 메인 페이지로 리다이렉트
-      router.push('/');
+
+      // 쿠키에도 저장 (미들웨어에서 사용)
+      document.cookie = `token=${token}; path=/; max-age=86400`; // 24시간
+
+      // 대시보드로 리다이렉트
+      router.push('/dashboard');
     } else {
       // 토큰이 없으면 로그인 페이지로
       router.push('/auth/login');
