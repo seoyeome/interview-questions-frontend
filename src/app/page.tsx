@@ -24,24 +24,47 @@ interface Question {
   explanation?: string;
 }
 
+interface CurrentQuestionInfo {
+  content: string;
+  explanation: string | null;
+  categoryName: string;
+  subCategoryName: string;
+  difficulty: string;
+  source?: 'AI' | 'DB'; // 질문 출처 표시
+}
+
 export default function Home() {
   const { theme, setTheme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  
+
+  // 로그인 상태
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   // API 데이터 상태
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // UI 상태
   const [selectedCategory, setSelectedCategory] = useState('전체');
   const [selectedSub, setSelectedSub] = useState('전체');
-  const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
-  const [currentExplanation, setCurrentExplanation] = useState<string | null>(null);
+  const [currentQuestionInfo, setCurrentQuestionInfo] = useState<CurrentQuestionInfo | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [showExplanation, setShowExplanation] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+  };
 
   // 백엔드 API에서 데이터 가져오기
   useEffect(() => {
@@ -102,67 +125,133 @@ export default function Home() {
   const handleCategory = (cat: string) => {
     setSelectedCategory(cat);
     setSelectedSub('전체');
-    setCurrentQuestion(null);
+    setCurrentQuestionInfo(null);
     setShowExplanation(false);
+    setShowAnswer(false);
     setUserAnswer('');
   };
 
   // 세부 카테고리 변경
   const handleSub = (sub: string) => {
     setSelectedSub(sub);
-    setCurrentQuestion(null);
+    setCurrentQuestionInfo(null);
     setShowExplanation(false);
+    setShowAnswer(false);
     setUserAnswer('');
   };
 
-  // 질문 생성 (랜덤)
-  const generateQuestion = () => {
-    // API 데이터가 있으면 API 데이터 사용
-    if (questions.length > 0) {
-      let filtered = [...questions];
-      
-      if (selectedCategory !== '전체') {
-        // 선택된 카테고리의 ID 찾기
-        const categoryId = categories.find(c => c.name === selectedCategory)?.id;
-        if (categoryId) {
-          // 카테고리 ID로 서브카테고리 필터링 후, 해당 서브카테고리에 속한 질문 필터링
-          const subCategoryIds = subCategories
-            .filter(s => s.categoryId === categoryId)
-            .map(s => s.id);
-          filtered = filtered.filter(q => subCategoryIds.includes(q.subCategoryId));
-        }
+  // DB에서 랜덤 질문 가져오기 (폴백 함수)
+  const getRandomQuestionFromDB = () => {
+    let filtered = [...questions];
+
+    if (selectedCategory !== '전체') {
+      const categoryId = categories.find(c => c.name === selectedCategory)?.id;
+      if (categoryId) {
+        const subCategoryIds = subCategories
+          .filter(s => s.categoryId === categoryId)
+          .map(s => s.id);
+        filtered = filtered.filter(q => subCategoryIds.includes(q.subCategoryId));
       }
-      
-      if (selectedSub !== '전체') {
-        // 선택된 서브카테고리의 ID 찾기
-        const subCategoryId = subCategories.find(s => s.name === selectedSub)?.id;
-        if (subCategoryId) {
-          filtered = filtered.filter(q => q.subCategoryId === subCategoryId);
-        }
+    }
+
+    if (selectedSub !== '전체') {
+      const subCategoryId = subCategories.find(s => s.name === selectedSub)?.id;
+      if (subCategoryId) {
+        filtered = filtered.filter(q => q.subCategoryId === subCategoryId);
       }
-      
-      if (filtered.length > 0) {
-        const picked = filtered[Math.floor(Math.random() * filtered.length)];
-        setCurrentQuestion(picked.content);
-        setCurrentExplanation(picked.explanation || null);
+    }
+
+    if (filtered.length > 0) {
+      const picked = filtered[Math.floor(Math.random() * filtered.length)];
+      const subCat = subCategories.find(s => s.id === picked.subCategoryId);
+      const cat = categories.find(c => c.id === subCat?.categoryId);
+
+      return {
+        content: picked.content,
+        explanation: picked.explanation || '해설이 준비되지 않았습니다.',
+        categoryName: cat?.name || '전체',
+        subCategoryName: subCat?.name || '전체',
+        difficulty: picked.difficulty,
+        source: 'DB' as const
+      };
+    }
+
+    return null;
+  };
+
+  // 하이브리드 질문 생성 (AI 우선 → DB 폴백)
+  const generateQuestion = async () => {
+    setLoading(true);
+
+    try {
+      // 1. 백엔드 AI API로 질문 생성 시도
+      console.log('AI 질문 생성 시도 중...');
+
+      const difficulties: ('EASY' | 'MEDIUM' | 'HARD')[] = ['EASY', 'MEDIUM', 'HARD'];
+      const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+
+      const aiResponse = await fetch('/api/v1/ai/generate-question', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category: selectedCategory === '전체' ? '기술 면접' : selectedCategory,
+          subCategory: selectedSub === '전체' ? '일반' : selectedSub,
+          difficulty: randomDifficulty
+        })
+      });
+
+      if (aiResponse.ok) {
+        const aiQuestion = await aiResponse.json();
+        console.log('AI 질문 생성 성공');
+        setCurrentQuestionInfo({
+          content: aiQuestion.content,
+          explanation: aiQuestion.explanation,
+          categoryName: selectedCategory,
+          subCategoryName: selectedSub,
+          difficulty: aiQuestion.difficulty,
+          source: 'AI'
+        });
         setShowExplanation(false);
+        setShowAnswer(false);
+        setUserAnswer('');
+        return;
+      }
+
+      // 2. AI 실패 시 DB 폴백
+      console.log('DB에서 질문 로드');
+      const dbQuestion = getRandomQuestionFromDB();
+
+      if (dbQuestion) {
+        setCurrentQuestionInfo(dbQuestion);
+        setShowExplanation(false);
+        setShowAnswer(false);
         setUserAnswer('');
       } else {
-        setCurrentQuestion('해당 카테고리에 질문이 없습니다');
-        setCurrentExplanation(null);
+        setCurrentQuestionInfo(null);
+      }
+
+    } catch (error) {
+      console.error('질문 생성 실패:', error);
+      // 최종 폴백
+      const dbQuestion = getRandomQuestionFromDB();
+      if (dbQuestion) {
+        setCurrentQuestionInfo(dbQuestion);
         setShowExplanation(false);
+        setShowAnswer(false);
         setUserAnswer('');
       }
-    } else {
-      setCurrentQuestion('질문을 불러오세요');
-      setCurrentExplanation(null);
-      setShowExplanation(false);
-      setUserAnswer('');
+    } finally {
+      setLoading(false);
     }
   };
 
   // 해설 보기
   const handleShowExplanation = () => setShowExplanation((v) => !v);
+
+  // 답변 확인하기
+  const handleShowAnswer = () => setShowAnswer((v) => !v);
 
   // 카테고리/세부카테고리 옵션
   const categoryOptions = categories.length > 0 
@@ -183,6 +272,31 @@ export default function Home() {
       <main className="w-full max-w-xl px-4 py-12 flex flex-col gap-8">
         {/* 헤더 */}
         <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-3">
+            {isLoggedIn ? (
+              <button
+                onClick={handleLogout}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#1e293b] border border-[#334155] text-white hover:bg-[#2d3a4f]'
+                    : 'bg-white border border-[#e2e8f0] text-gray-700 hover:bg-[#f8fafc]'
+                }`}
+              >
+                로그아웃
+              </button>
+            ) : (
+              <a
+                href="/auth/login"
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]'
+                    : 'bg-[#3b82f6] text-white hover:bg-[#2563eb]'
+                }`}
+              >
+                로그인
+              </a>
+            )}
+          </div>
           <div className="flex-1 text-center">
             <h1 className="text-3xl font-bold mb-2 tracking-tight">면접 질문 생성기</h1>
             <p className="text-base text-[#94a3b8]">카테고리를 선택하고 랜덤 질문을 받아보세요</p>
@@ -190,8 +304,8 @@ export default function Home() {
           <button
             onClick={toggleTheme}
             className={`p-3 rounded-2xl shadow border transition-colors ${
-              isDarkMode 
-                ? 'bg-[#1e293b] border-[#334155] hover:bg-[#2d3a4f]' 
+              isDarkMode
+                ? 'bg-[#1e293b] border-[#334155] hover:bg-[#2d3a4f]'
                 : 'bg-white/80 border-[#f1f5f9] hover:bg-[#f8fafc]'
             }`}
             aria-label={isDarkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
@@ -224,14 +338,43 @@ export default function Home() {
 
         {/* 질문 카드 */}
         <section className={`rounded-3xl shadow-xl p-8 transition-colors ${
-          isDarkMode 
-            ? 'bg-[#1e293b]/80 text-white' 
+          isDarkMode
+            ? 'bg-[#1e293b]/80 text-white'
             : 'bg-white text-[#1e293b]'
         }`}>
+          {currentQuestionInfo && (
+            <div className="flex gap-2 mb-3 flex-wrap">
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                isDarkMode
+                  ? 'bg-[#3182f6]/20 text-[#60a5fa]'
+                  : 'bg-[#dbeafe] text-[#1e40af]'
+              }`}>
+                {currentQuestionInfo.categoryName} &gt; {currentQuestionInfo.subCategoryName}
+              </span>
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                currentQuestionInfo.difficulty === 'EASY'
+                  ? isDarkMode ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                  : currentQuestionInfo.difficulty === 'MEDIUM'
+                  ? isDarkMode ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+                  : isDarkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
+              }`}>
+                {currentQuestionInfo.difficulty === 'EASY' ? '쉬움' : currentQuestionInfo.difficulty === 'MEDIUM' ? '보통' : '어려움'}
+              </span>
+              {currentQuestionInfo.source === 'AI' && (
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  isDarkMode
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'bg-purple-100 text-purple-700'
+                }`}>
+                  ✨ AI 생성
+                </span>
+              )}
+            </div>
+          )}
           <div className="font-bold text-lg mb-2">
-            {currentQuestion ? currentQuestion : '질문을 불러오세요'}
+            {currentQuestionInfo ? currentQuestionInfo.content : '질문을 불러오세요'}
           </div>
-          {currentQuestion && (
+          {currentQuestionInfo && (
             <button
               className="self-end text-xs text-[#64748b] hover:underline"
               onClick={handleShowExplanation}
@@ -239,13 +382,13 @@ export default function Home() {
               {showExplanation ? '해설 닫기' : '해설 보기'}
             </button>
           )}
-          {showExplanation && currentExplanation && (
+          {showExplanation && currentQuestionInfo && (
             <div className={`w-full rounded-xl p-4 text-sm mt-2 ${
-              isDarkMode 
-                ? 'bg-[#0f172a]/50 text-[#cbd5e1]' 
+              isDarkMode
+                ? 'bg-[#0f172a]/50 text-[#cbd5e1]'
                 : 'bg-[#f1f5f9] text-[#64748b]'
             }`}>
-              {currentExplanation}
+              {currentQuestionInfo.explanation}
             </div>
           )}
         </section>
@@ -288,21 +431,21 @@ export default function Home() {
 
         {/* 답변 카드 */}
         <section className={`rounded-3xl shadow-xl p-8 transition-colors ${
-          isDarkMode 
-            ? 'bg-[#1e293b]/80 text-white' 
+          isDarkMode
+            ? 'bg-[#1e293b]/80 text-white'
             : 'bg-white text-[#1e293b]'
         }`}>
           <div className="font-bold text-lg mb-2">나의 답변</div>
           <textarea
             placeholder="여기에 답변을 작성해주세요..."
             className={`w-full p-5 rounded-2xl border resize-none focus:outline-none focus:ring-2 focus:ring-[#3182f6] min-h-[120px] transition-colors ${
-              isDarkMode 
-                ? 'bg-[#1e293b] border-[#334155] text-white placeholder-[#64748b]' 
+              isDarkMode
+                ? 'bg-[#1e293b] border-[#334155] text-white placeholder-[#64748b]'
                 : 'bg-[#f8fafc] border-[#e2e8f0] text-[#1e293b] placeholder-[#94a3b8]'
             }`}
             value={userAnswer}
             onChange={e => setUserAnswer(e.target.value)}
-            disabled={!currentQuestion || currentQuestion === '질문을 불러오세요'}
+            disabled={!currentQuestionInfo}
           />
           <button
             className={`w-full rounded-2xl font-bold px-6 py-3 mt-4 transition-all ${
@@ -310,10 +453,31 @@ export default function Home() {
                 ? 'bg-[#3182f6]/20 text-[#60a5fa] hover:bg-[#3182f6]/30'
                 : 'bg-[#bcdcff] text-[#1e293b] hover:bg-[#a5c9ff]'
             } disabled:opacity-60`}
-            disabled={!currentQuestion || currentQuestion === '질문을 불러오세요'}
+            disabled={!currentQuestionInfo}
+            onClick={handleShowAnswer}
           >
-            답변 확인하기
+            {showAnswer ? '답변 숨기기' : '답변 확인하기'}
           </button>
+
+          {/* 모범 답변 아코디언 */}
+          {showAnswer && currentQuestionInfo && (
+            <div className={`mt-4 rounded-2xl p-5 border-2 transition-all ${
+              isDarkMode
+                ? 'bg-emerald-500/10 border-emerald-500/30'
+                : 'bg-emerald-50 border-emerald-200'
+            }`}>
+              <div className={`font-bold text-base mb-2 ${
+                isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
+              }`}>
+                💡 모범 답변
+              </div>
+              <div className={`text-sm whitespace-pre-wrap ${
+                isDarkMode ? 'text-emerald-100' : 'text-emerald-900'
+              }`}>
+                {currentQuestionInfo.explanation}
+              </div>
+            </div>
+          )}
         </section>
       </main>
     </div>
