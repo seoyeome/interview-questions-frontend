@@ -11,12 +11,17 @@ RUN npm install -g pnpm && pnpm i
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+
+# Build-time environment variables for client-side code
+ARG NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Next.js collects anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 
 RUN npm install -g pnpm && pnpm build
 
