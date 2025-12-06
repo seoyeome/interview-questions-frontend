@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
+import { getBackendUrl } from '@/lib/api';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -79,8 +80,7 @@ export default function SignupPage() {
   };
 
   const handleKakaoLogin = () => {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
-    window.location.href = `${backendUrl}/oauth2/authorization/kakao`;
+    window.location.href = `${getBackendUrl()}/oauth2/authorization/kakao`;
   };
 
   return (
