@@ -7,3 +7,71 @@ export const getBackendUrl = () => DEFAULT_BACKEND_URL;
 export const buildApiUrl = (path: string) => {
   return `${DEFAULT_BACKEND_URL}${normalizePath(path)}`;
 };
+
+// API 응답 타입
+interface ApiResponse<T = unknown> {
+  data?: T;
+  token?: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+// API Client
+class ApiClient {
+  private baseUrl = '/api/v1';
+
+  private async request<T = unknown>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}${normalizePath(endpoint)}`, {
+      ...options,
+      headers: {
+        ...headers,
+        ...(options.headers as Record<string, string>),
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'API 요청에 실패했습니다');
+    }
+
+    return data;
+  }
+
+  async get<T = unknown>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { method: 'GET' });
+  }
+
+  async post<T = unknown>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  async put<T = unknown>(endpoint: string, body?: unknown): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  async delete<T = unknown>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+}
+
+export const apiClient = new ApiClient();

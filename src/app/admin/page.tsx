@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { SunIcon, MoonIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { apiClient } from '@/lib/api';
 
 interface Question {
   id: string;
@@ -45,21 +46,15 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [questionsRes, categoriesRes, subCategoriesRes] = await Promise.all([
-        fetch('/api/v1/questions'),
-        fetch('/api/v1/categories'),
-        fetch('/api/v1/sub-categories')
+      const [questionsData, categoriesData, subCategoriesData] = await Promise.all([
+        apiClient.get('/questions'),
+        apiClient.get('/categories'),
+        apiClient.get('/sub-categories')
       ]);
 
-      if (questionsRes.ok && categoriesRes.ok && subCategoriesRes.ok) {
-        const questionsData = await questionsRes.json();
-        const categoriesData = await categoriesRes.json();
-        const subCategoriesData = await subCategoriesRes.json();
-
-        setQuestions(questionsData);
-        setCategories(categoriesData);
-        setSubCategories(subCategoriesData);
-      }
+      setQuestions(questionsData as unknown as Question[]);
+      setCategories(categoriesData as unknown as Category[]);
+      setSubCategories(subCategoriesData as unknown as SubCategory[]);
     } catch (error) {
       console.error('데이터 로딩 실패:', error);
     } finally {
@@ -82,26 +77,16 @@ export default function AdminPage() {
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/v1/questions/${editingQuestion.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: editingQuestion.content,
-          difficulty: editingQuestion.difficulty,
-          explanation: editExplanation
-        }),
+      await apiClient.put(`/questions/${editingQuestion.id}`, {
+        content: editingQuestion.content,
+        difficulty: editingQuestion.difficulty,
+        explanation: editExplanation
       });
 
-      if (response.ok) {
-        // 성공 시 목록 갱신
-        await fetchData();
-        setEditingQuestion(null);
-        setEditExplanation('');
-      } else {
-        alert('저장 실패');
-      }
+      // 성공 시 목록 갱신
+      await fetchData();
+      setEditingQuestion(null);
+      setEditExplanation('');
     } catch (error) {
       console.error('저장 실패:', error);
       alert('저장 중 오류 발생');

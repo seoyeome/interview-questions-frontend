@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { apiClient } from '@/lib/api';
 
 // API 응답 타입 정의
 interface Category {
@@ -77,32 +78,15 @@ export default function Home() {
       setError(null);
       
       try {
-        // 카테고리 데이터 가져오기
-        const categoryRes = await fetch('/api/v1/categories');
-        if (!categoryRes.ok) {
-          console.error('카테고리 데이터를 불러오는데 실패했습니다');
-          return;
-        }
-        const categoryData = await categoryRes.json();
-        setCategories(categoryData);
-        
-        // 서브카테고리 데이터 가져오기
-        const subCategoryRes = await fetch('/api/v1/sub-categories');
-        if (!subCategoryRes.ok) {
-          console.error('서브카테고리 데이터를 불러오는데 실패했습니다');
-          return;
-        }
-        const subCategoryData = await subCategoryRes.json();
-        setSubCategories(subCategoryData);
-        
-        // 질문 데이터 가져오기
-        const questionRes = await fetch('/api/v1/questions');
-        if (!questionRes.ok) {
-          console.error('질문 데이터를 불러오는데 실패했습니다');
-          return;
-        }
-        const questionData = await questionRes.json();
-        setQuestions(questionData);
+        const [categoryData, subCategoryData, questionData] = await Promise.all([
+          apiClient.get('/categories'),
+          apiClient.get('/sub-categories'),
+          apiClient.get('/questions'),
+        ]);
+
+        setCategories(categoryData as unknown as Category[]);
+        setSubCategories(subCategoryData as unknown as SubCategory[]);
+        setQuestions(questionData as unknown as Question[]);
       } catch (err) {
         console.error('데이터 로딩 중 오류 발생:', err);
       } finally {
@@ -194,27 +178,20 @@ export default function Home() {
       const difficulties: ('EASY' | 'MEDIUM' | 'HARD')[] = ['EASY', 'MEDIUM', 'HARD'];
       const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
 
-      const aiResponse = await fetch('/api/v1/ai/generate-question', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          category: selectedCategory === '전체' ? '기술 면접' : selectedCategory,
-          subCategory: selectedSub === '전체' ? '일반' : selectedSub,
-          difficulty: randomDifficulty
-        })
+      const aiQuestion = await apiClient.post('/ai/generate-question', {
+        category: selectedCategory === '전체' ? '기술 면접' : selectedCategory,
+        subCategory: selectedSub === '전체' ? '일반' : selectedSub,
+        difficulty: randomDifficulty
       });
 
-      if (aiResponse.ok) {
-        const aiQuestion = await aiResponse.json();
+      if (aiQuestion.content) {
         console.log('AI 질문 생성 성공');
         setCurrentQuestionInfo({
-          content: aiQuestion.content,
-          explanation: aiQuestion.explanation,
+          content: String(aiQuestion.content),
+          explanation: aiQuestion.explanation ? String(aiQuestion.explanation) : null,
           categoryName: selectedCategory,
           subCategoryName: selectedSub,
-          difficulty: aiQuestion.difficulty,
+          difficulty: String(aiQuestion.difficulty),
           source: 'AI'
         });
         setShowExplanation(false);

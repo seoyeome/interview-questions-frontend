@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { getBackendUrl } from '@/lib/api';
+import { getBackendUrl, apiClient } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,25 +27,16 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const data = await apiClient.post('/auth/login', { email, password });
 
-      const data = await response.json();
-
-      if (response.ok && data.token) {
-        // JWT 토큰 저장
+      if (data.token) {
         localStorage.setItem('token', data.token);
         router.push('/');
       } else {
         setError(data.message || '로그인에 실패했습니다');
       }
     } catch (err) {
-      setError('로그인 중 오류가 발생했습니다');
+      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다');
     } finally {
       setLoading(false);
     }
