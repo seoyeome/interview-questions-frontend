@@ -166,8 +166,8 @@ export default function SignupPage() {
         name: formData.name,
         password: formData.password,
       });
-      // 쿠키는 백엔드에서 HttpOnly로 설정됨
-      router.push('/dashboard');
+      // 회원가입 성공 시 로그인 페이지로 이동
+      router.push('/auth/login?signup=success');
     } catch (err) {
       setError(err instanceof Error ? err.message : '회원가입 중 오류가 발생했습니다');
     } finally {

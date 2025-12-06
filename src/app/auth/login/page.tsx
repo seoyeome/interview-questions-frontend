@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { getBackendUrl, apiClient } from '@/lib/api';
@@ -13,18 +13,24 @@ interface ValidationErrors {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // 회원가입 성공 시 메시지 표시
+    if (searchParams.get('signup') === 'success') {
+      setSuccessMessage('회원가입이 완료되었습니다. 로그인해주세요.');
+    }
+  }, [searchParams]);
 
   const isDarkMode = mounted && (theme === 'dark' || (theme === 'system' && systemTheme === 'dark'));
 
@@ -157,6 +163,12 @@ export default function LoginPage() {
 
           {/* 이메일 로그인 */}
           <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+            {successMessage && (
+              <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4">
+                <p className="text-sm text-green-800 dark:text-green-200">{successMessage}</p>
+              </div>
+            )}
+
             {error && (
               <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
                 <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
