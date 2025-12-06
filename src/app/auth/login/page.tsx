@@ -6,14 +6,21 @@ import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { getBackendUrl, apiClient } from '@/lib/api';
 
+interface ValidationErrors {
+  email?: string;
+  password?: string;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { theme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     setMounted(true);
@@ -21,9 +28,80 @@ export default function LoginPage() {
 
   const isDarkMode = mounted && (theme === 'dark' || (theme === 'system' && systemTheme === 'dark'));
 
+  // 이메일 유효성 검사
+  const validateEmail = (email: string): string | undefined => {
+    if (!email) {
+      return '이메일은 필수입니다';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return '올바른 이메일 형식이 아닙니다';
+    }
+    return undefined;
+  };
+
+  // 비밀번호 유효성 검사
+  const validatePassword = (password: string): string | undefined => {
+    if (!password) {
+      return '비밀번호는 필수입니다';
+    }
+    return undefined;
+  };
+
+  // 실시간 유효성 검사
+  const validateField = (name: string, value: string) => {
+    let error: string | undefined;
+
+    if (name === 'email') {
+      error = validateEmail(value);
+    } else if (name === 'password') {
+      error = validatePassword(value);
+    }
+
+    setValidationErrors(prev => ({ ...prev, [name]: error }));
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEmail(value);
+    if (touched.email) {
+      validateField('email', value);
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPassword(value);
+    if (touched.password) {
+      validateField('password', value);
+    }
+  };
+
+  const handleBlur = (field: string, value: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    validateField(field, value);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // 모든 필드 터치 처리
+    setTouched({ email: true, password: true });
+
+    // 모든 필드 유효성 검사
+    const errors: ValidationErrors = {
+      email: validateEmail(email),
+      password: validatePassword(password),
+    };
+
+    setValidationErrors(errors);
+
+    // 에러가 하나라도 있으면 제출 중단
+    if (Object.values(errors).some(error => error !== undefined)) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -85,7 +163,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="rounded-md shadow-sm -space-y-px">
+            <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="sr-only">
                   이메일
@@ -97,10 +175,18 @@ export default function LoginPage() {
                   autoComplete="email"
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-[var(--border-color)] placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  onChange={handleEmailChange}
+                  onBlur={() => handleBlur('email', email)}
+                  className={`appearance-none relative block w-full px-3 py-2 border ${
+                    validationErrors.email && touched.email
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-[var(--border-color)] focus:ring-blue-500 focus:border-blue-500'
+                  } placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:z-10 sm:text-sm`}
                   placeholder="이메일"
                 />
+                {validationErrors.email && touched.email && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.email}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="password" className="sr-only">
@@ -113,10 +199,18 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-[var(--border-color)] placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  onChange={handlePasswordChange}
+                  onBlur={() => handleBlur('password', password)}
+                  className={`appearance-none relative block w-full px-3 py-2 border ${
+                    validationErrors.password && touched.password
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-[var(--border-color)] focus:ring-blue-500 focus:border-blue-500'
+                  } placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:z-10 sm:text-sm`}
                   placeholder="비밀번호"
                 />
+                {validationErrors.password && touched.password && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.password}</p>
+                )}
               </div>
             </div>
 

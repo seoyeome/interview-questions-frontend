@@ -6,6 +6,13 @@ import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { getBackendUrl, apiClient } from '@/lib/api';
 
+interface ValidationErrors {
+  email?: string;
+  name?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const { theme, systemTheme } = useTheme();
@@ -16,8 +23,10 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
   });
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     setMounted(true);
@@ -25,26 +34,127 @@ export default function SignupPage() {
 
   const isDarkMode = mounted && (theme === 'dark' || (theme === 'system' && systemTheme === 'dark'));
 
+  // 이메일 유효성 검사
+  const validateEmail = (email: string): string | undefined => {
+    if (!email) {
+      return '이메일은 필수입니다';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return '올바른 이메일 형식이 아닙니다';
+    }
+    return undefined;
+  };
+
+  // 이름 유효성 검사
+  const validateName = (name: string): string | undefined => {
+    if (!name) {
+      return '이름은 필수입니다';
+    }
+    if (name.length < 2) {
+      return '이름은 최소 2자 이상이어야 합니다';
+    }
+    if (name.length > 50) {
+      return '이름은 최대 50자까지 입력 가능합니다';
+    }
+    return undefined;
+  };
+
+  // 비밀번호 유효성 검사
+  const validatePassword = (password: string): string | undefined => {
+    if (!password) {
+      return '비밀번호는 필수입니다';
+    }
+    if (password.length < 8) {
+      return '비밀번호는 최소 8자 이상이어야 합니다';
+    }
+    if (password.length > 100) {
+      return '비밀번호는 최대 100자까지 입력 가능합니다';
+    }
+    return undefined;
+  };
+
+  // 비밀번호 확인 유효성 검사
+  const validateConfirmPassword = (confirmPassword: string, password: string): string | undefined => {
+    if (!confirmPassword) {
+      return '비밀번호 확인은 필수입니다';
+    }
+    if (confirmPassword !== password) {
+      return '비밀번호가 일치하지 않습니다';
+    }
+    return undefined;
+  };
+
+  // 실시간 유효성 검사
+  const validateField = (name: string, value: string) => {
+    let error: string | undefined;
+
+    switch (name) {
+      case 'email':
+        error = validateEmail(value);
+        break;
+      case 'name':
+        error = validateName(value);
+        break;
+      case 'password':
+        error = validatePassword(value);
+        // 비밀번호가 변경되면 confirmPassword도 다시 검사
+        if (formData.confirmPassword) {
+          const confirmError = validateConfirmPassword(formData.confirmPassword, value);
+          setValidationErrors(prev => ({ ...prev, confirmPassword: confirmError }));
+        }
+        break;
+      case 'confirmPassword':
+        error = validateConfirmPassword(value, formData.password);
+        break;
+    }
+
+    setValidationErrors(prev => ({ ...prev, [name]: error }));
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    // 이미 터치된 필드만 실시간 검사
+    if (touched[name]) {
+      validateField(name, value);
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    validateField(name, value);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // 비밀번호 확인
-    if (formData.password !== formData.confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다');
-      return;
-    }
+    // 모든 필드 터치 처리
+    setTouched({
+      email: true,
+      name: true,
+      password: true,
+      confirmPassword: true,
+    });
 
-    // 비밀번호 길이 체크
-    if (formData.password.length < 8) {
-      setError('비밀번호는 최소 8자 이상이어야 합니다');
+    // 모든 필드 유효성 검사
+    const errors: ValidationErrors = {
+      email: validateEmail(formData.email),
+      name: validateName(formData.name),
+      password: validatePassword(formData.password),
+      confirmPassword: validateConfirmPassword(formData.confirmPassword, formData.password),
+    };
+
+    setValidationErrors(errors);
+
+    // 에러가 하나라도 있으면 제출 중단
+    if (Object.values(errors).some(error => error !== undefined)) {
       return;
     }
 
@@ -126,9 +236,17 @@ export default function SignupPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-[var(--border-color)] placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  onBlur={handleBlur}
+                  className={`appearance-none relative block w-full px-3 py-2 border ${
+                    validationErrors.email && touched.email
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-[var(--border-color)] focus:ring-blue-500 focus:border-blue-500'
+                  } placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:z-10 sm:text-sm`}
                   placeholder="이메일"
                 />
+                {validationErrors.email && touched.email && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.email}</p>
+                )}
               </div>
 
               <div>
@@ -143,9 +261,17 @@ export default function SignupPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-[var(--border-color)] placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="이름"
+                  onBlur={handleBlur}
+                  className={`appearance-none relative block w-full px-3 py-2 border ${
+                    validationErrors.name && touched.name
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-[var(--border-color)] focus:ring-blue-500 focus:border-blue-500'
+                  } placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:z-10 sm:text-sm`}
+                  placeholder="이름 (2자 이상)"
                 />
+                {validationErrors.name && touched.name && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.name}</p>
+                )}
               </div>
 
               <div>
@@ -160,9 +286,17 @@ export default function SignupPage() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-[var(--border-color)] placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  onBlur={handleBlur}
+                  className={`appearance-none relative block w-full px-3 py-2 border ${
+                    validationErrors.password && touched.password
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-[var(--border-color)] focus:ring-blue-500 focus:border-blue-500'
+                  } placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:z-10 sm:text-sm`}
                   placeholder="비밀번호 (8자 이상)"
                 />
+                {validationErrors.password && touched.password && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.password}</p>
+                )}
               </div>
 
               <div>
@@ -177,9 +311,17 @@ export default function SignupPage() {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-[var(--border-color)] placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  onBlur={handleBlur}
+                  className={`appearance-none relative block w-full px-3 py-2 border ${
+                    validationErrors.confirmPassword && touched.confirmPassword
+                      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                      : 'border-[var(--border-color)] focus:ring-blue-500 focus:border-blue-500'
+                  } placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:z-10 sm:text-sm`}
                   placeholder="비밀번호 확인"
                 />
+                {validationErrors.confirmPassword && touched.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.confirmPassword}</p>
+                )}
               </div>
             </div>
 
