@@ -1,29 +1,16 @@
 'use client';
 
 import { useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 function AuthCallbackContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const token = searchParams.get('token');
-
-    if (token) {
-      // JWT 토큰 localStorage에 저장
-      localStorage.setItem('token', token);
-
-      // 쿠키에도 저장 (미들웨어에서 사용)
-      document.cookie = `token=${token}; path=/; max-age=86400`; // 24시간
-
-      // 대시보드로 리다이렉트
-      router.push('/dashboard');
-    } else {
-      // 토큰이 없으면 로그인 페이지로
-      router.push('/auth/login');
-    }
-  }, [searchParams, router]);
+    // 카카오 OAuth 성공 시 백엔드에서 HttpOnly 쿠키로 토큰 설정됨
+    // 바로 대시보드로 리다이렉트
+    router.push('/dashboard');
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

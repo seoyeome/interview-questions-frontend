@@ -51,18 +51,13 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const data = await apiClient.post('/auth/signup', {
+      await apiClient.post('/auth/signup', {
         email: formData.email,
         name: formData.name,
         password: formData.password,
       });
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        router.push('/');
-      } else {
-        setError(data.message || '회원가입에 실패했습니다');
-      }
+      // 쿠키는 백엔드에서 HttpOnly로 설정됨
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : '회원가입 중 오류가 발생했습니다');
     } finally {

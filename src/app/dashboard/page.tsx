@@ -58,17 +58,21 @@ export default function Home() {
 
   // 로그인 상태 확인
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
+    setIsLoggedIn(true); // 미들웨어에서 이미 인증 확인됨
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    // 쿠키 삭제
-    document.cookie = 'token=; path=/; max-age=0';
-    setIsLoggedIn(false);
-    // 랜딩 페이지로 리다이렉트
-    window.location.href = '/';
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+      setIsLoggedIn(false);
+      // 랜딩 페이지로 리다이렉트
+      window.location.href = '/';
+    } catch (err) {
+      console.error('로그아웃 실패:', err);
+      // 실패해도 로컬 상태 업데이트 및 리다이렉트
+      setIsLoggedIn(false);
+      window.location.href = '/';
+    }
   };
 
   // 백엔드 API에서 데이터 가져오기

@@ -24,15 +24,9 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     const response = await fetch(`${this.baseUrl}${normalizePath(endpoint)}`, {
       ...options,
@@ -40,6 +34,7 @@ class ApiClient {
         ...headers,
         ...(options.headers as Record<string, string>),
       },
+      credentials: 'include', // 쿠키 전송을 위해 필요
     });
 
     const data = await response.json();

@@ -27,14 +27,9 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await apiClient.post('/auth/login', { email, password });
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        router.push('/');
-      } else {
-        setError(data.message || '로그인에 실패했습니다');
-      }
+      await apiClient.post('/auth/login', { email, password });
+      // 쿠키는 백엔드에서 HttpOnly로 설정됨
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다');
     } finally {
