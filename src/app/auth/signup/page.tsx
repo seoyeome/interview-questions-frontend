@@ -8,7 +8,7 @@ import { getBackendUrl, apiClient } from '@/lib/api';
 
 interface ValidationErrors {
   email?: string;
-  name?: string;
+  nickname?: string;
   password?: string;
   confirmPassword?: string;
 }
@@ -19,7 +19,7 @@ export default function SignupPage() {
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
-    name: '',
+    nickname: '',
     password: '',
     confirmPassword: '',
   });
@@ -46,16 +46,16 @@ export default function SignupPage() {
     return undefined;
   };
 
-  // 이름 유효성 검사
-  const validateName = (name: string): string | undefined => {
-    if (!name) {
-      return '이름은 필수입니다';
+  // 닉네임 유효성 검사
+  const validateNickname = (nickname: string): string | undefined => {
+    if (!nickname) {
+      return '닉네임은 필수입니다';
     }
-    if (name.length < 2) {
-      return '이름은 최소 2자 이상이어야 합니다';
+    if (nickname.length < 2) {
+      return '닉네임은 최소 2자 이상이어야 합니다';
     }
-    if (name.length > 50) {
-      return '이름은 최대 50자까지 입력 가능합니다';
+    if (nickname.length > 50) {
+      return '닉네임은 최대 50자까지 입력 가능합니다';
     }
     return undefined;
   };
@@ -93,8 +93,8 @@ export default function SignupPage() {
       case 'email':
         error = validateEmail(value);
         break;
-      case 'name':
-        error = validateName(value);
+      case 'nickname':
+        error = validateNickname(value);
         break;
       case 'password':
         error = validatePassword(value);
@@ -138,7 +138,7 @@ export default function SignupPage() {
     // 모든 필드 터치 처리
     setTouched({
       email: true,
-      name: true,
+      nickname: true,
       password: true,
       confirmPassword: true,
     });
@@ -146,7 +146,7 @@ export default function SignupPage() {
     // 모든 필드 유효성 검사
     const errors: ValidationErrors = {
       email: validateEmail(formData.email),
-      name: validateName(formData.name),
+      nickname: validateNickname(formData.nickname),
       password: validatePassword(formData.password),
       confirmPassword: validateConfirmPassword(formData.confirmPassword, formData.password),
     };
@@ -163,7 +163,7 @@ export default function SignupPage() {
     try {
       await apiClient.post('/auth/signup', {
         email: formData.email,
-        name: formData.name,
+        nickname: formData.nickname,
         password: formData.password,
       });
       // 회원가입 성공 시 로그인 페이지로 이동
@@ -250,27 +250,27 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label htmlFor="name" className="sr-only">
-                  이름
+                <label htmlFor="nickname" className="sr-only">
+                  닉네임
                 </label>
                 <input
-                  id="name"
-                  name="name"
+                  id="nickname"
+                  name="nickname"
                   type="text"
-                  autoComplete="name"
+                  autoComplete="nickname"
                   required
-                  value={formData.name}
+                  value={formData.nickname}
                   onChange={handleChange}
                   onBlur={handleBlur}
                   className={`appearance-none relative block w-full px-3 py-2 border ${
-                    validationErrors.name && touched.name
+                    validationErrors.nickname && touched.nickname
                       ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                       : 'border-[var(--border-color)] focus:ring-blue-500 focus:border-blue-500'
                   } placeholder-[var(--text-secondary)] text-[var(--text-primary)] bg-[var(--input-background)] rounded-md focus:outline-none focus:z-10 sm:text-sm`}
-                  placeholder="이름 (2자 이상)"
+                  placeholder="닉네임 (2자 이상)"
                 />
-                {validationErrors.name && touched.name && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.name}</p>
+                {validationErrors.nickname && touched.nickname && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationErrors.nickname}</p>
                 )}
               </div>
 

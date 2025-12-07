@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { SunIcon, MoonIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api';
 
 // API 응답 타입 정의
@@ -35,6 +36,7 @@ interface CurrentQuestionInfo {
 }
 
 export default function Home() {
+  const router = useRouter();
   const { theme, setTheme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -259,16 +261,29 @@ export default function Home() {
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-3">
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#1e293b] border border-[#334155] text-white hover:bg-[#2d3a4f]'
-                    : 'bg-white border border-[#e2e8f0] text-gray-700 hover:bg-[#f8fafc]'
-                }`}
-              >
-                로그아웃
-              </button>
+              <>
+                <button
+                  onClick={() => router.push('/profile')}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#1e293b] border border-[#334155] text-white hover:bg-[#2d3a4f]'
+                      : 'bg-white border border-[#e2e8f0] text-gray-700 hover:bg-[#f8fafc]'
+                  }`}
+                  aria-label="프로필"
+                >
+                  <UserCircleIcon className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#1e293b] border border-[#334155] text-white hover:bg-[#2d3a4f]'
+                      : 'bg-white border border-[#e2e8f0] text-gray-700 hover:bg-[#f8fafc]'
+                  }`}
+                >
+                  로그아웃
+                </button>
+              </>
             ) : (
               <a
                 href="/auth/login"
