@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { SunIcon, MoonIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { apiClient } from '@/lib/api';
+import toast, { Toaster } from 'react-hot-toast';
 
 // API 응답 타입 정의
 interface Category {
@@ -57,6 +58,7 @@ export default function Home() {
   const [userAnswer, setUserAnswer] = useState('');
   const [showExplanation, setShowExplanation] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [remainingQuota, setRemainingQuota] = useState<number>(1); // AI 남은 횟수
 
   // 로그인 상태 확인
   useEffect(() => {
@@ -77,12 +79,24 @@ export default function Home() {
     }
   };
 
+  // 남은 quota 조회
+  const fetchRemainingQuota = async () => {
+    try {
+      const response = await apiClient.get('/ai/remaining-quota');
+      if (response && typeof response.data === 'number') {
+        setRemainingQuota(response.data);
+      }
+    } catch (err) {
+      console.error('Quota 조회 실패:', err);
+    }
+  };
+
   // 백엔드 API에서 데이터 가져오기
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const [categoryData, subCategoryData, questionData] = await Promise.all([
           apiClient.get('/categories'),
@@ -93,13 +107,16 @@ export default function Home() {
         setCategories(categoryData as unknown as Category[]);
         setSubCategories(subCategoryData as unknown as SubCategory[]);
         setQuestions(questionData as unknown as Question[]);
+
+        // Quota 조회
+        await fetchRemainingQuota();
       } catch (err) {
         console.error('데이터 로딩 중 오류 발생:', err);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, []);
 
@@ -173,41 +190,10 @@ export default function Home() {
     return null;
   };
 
-  // 하이브리드 질문 생성 (AI 우선 → DB 폴백)
-  const generateQuestion = async () => {
+  // DB 질문 생성 (일반 질문)
+  const generateDBQuestion = () => {
     setLoading(true);
-
     try {
-      // 1. 백엔드 AI API로 질문 생성 시도
-      console.log('AI 질문 생성 시도 중...');
-
-      const difficulties: ('EASY' | 'MEDIUM' | 'HARD')[] = ['EASY', 'MEDIUM', 'HARD'];
-      const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
-
-      const aiQuestion = await apiClient.post('/ai/generate-question', {
-        category: selectedCategory === '전체' ? '기술 면접' : selectedCategory,
-        subCategory: selectedSub === '전체' ? '일반' : selectedSub,
-        difficulty: randomDifficulty
-      });
-
-      if (aiQuestion.content) {
-        console.log('AI 질문 생성 성공');
-        setCurrentQuestionInfo({
-          content: String(aiQuestion.content),
-          explanation: aiQuestion.explanation ? String(aiQuestion.explanation) : null,
-          categoryName: selectedCategory,
-          subCategoryName: selectedSub,
-          difficulty: String(aiQuestion.difficulty),
-          source: 'AI'
-        });
-        setShowExplanation(false);
-        setShowAnswer(false);
-        setUserAnswer('');
-        return;
-      }
-
-      // 2. AI 실패 시 DB 폴백
-      console.log('DB에서 질문 로드');
       const dbQuestion = getRandomQuestionFromDB();
 
       if (dbQuestion) {
@@ -218,16 +204,68 @@ export default function Home() {
       } else {
         setCurrentQuestionInfo(null);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    } catch (error) {
-      console.error('질문 생성 실패:', error);
-      // 최종 폴백
-      const dbQuestion = getRandomQuestionFromDB();
-      if (dbQuestion) {
-        setCurrentQuestionInfo(dbQuestion);
+  // AI 질문 하이브리드 (DB 우선 → API fallback)
+  const generateAIQuestion = async () => {
+    setLoading(true);
+
+    try {
+      const difficulties: ('EASY' | 'MEDIUM' | 'HARD')[] = ['EASY', 'MEDIUM', 'HARD'];
+      const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+
+      const aiQuestion = await apiClient.post('/ai/question', {
+        category: selectedCategory === '전체' ? '기술 면접' : selectedCategory,
+        subCategory: selectedSub === '전체' ? '일반' : selectedSub,
+        difficulty: randomDifficulty
+      });
+
+      if (aiQuestion.content) {
+        setCurrentQuestionInfo({
+          content: String(aiQuestion.content),
+          explanation: aiQuestion.explanation ? String(aiQuestion.explanation) : null,
+          categoryName: selectedCategory,
+          subCategoryName: selectedSub,
+          difficulty: String(aiQuestion.difficulty),
+          source: aiQuestion.fromCache ? 'AI' : 'AI'
+        });
         setShowExplanation(false);
         setShowAnswer(false);
         setUserAnswer('');
+
+        // remainingQuota 업데이트
+        if (typeof aiQuestion.remainingQuota === 'number') {
+          setRemainingQuota(aiQuestion.remainingQuota);
+        }
+
+        // Toast 메시지
+        if (aiQuestion.fromCache) {
+          toast.success('저장된 AI 질문을 불러왔습니다! (횟수 차감 안됨)', {
+            duration: 3000,
+            icon: '💾'
+          });
+        } else {
+          toast.success(`새로운 AI 질문 생성 완료! (남은 횟수: ${aiQuestion.remainingQuota}/1)`, {
+            duration: 3000,
+            icon: '✨'
+          });
+        }
+      } else {
+        toast.error('AI 질문 생성에 실패했습니다.');
+      }
+    } catch (error: any) {
+      console.error('AI 질문 생성 실패:', error);
+
+      if (error.response?.status === 429) {
+        toast.error('오늘의 AI 질문 생성 횟수를 모두 사용했습니다. 내일 다시 시도해주세요.', {
+          duration: 4000,
+          icon: '⏰'
+        });
+      } else {
+        toast.error('AI 질문 생성 중 오류가 발생했습니다.');
       }
     } finally {
       setLoading(false);
@@ -256,6 +294,28 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-[#0f172a]' : 'bg-[#fff]'} flex items-center justify-center`}>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: isDarkMode ? '#1e293b' : '#ffffff',
+            color: isDarkMode ? '#ffffff' : '#1e293b',
+            border: isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#ffffff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#ffffff',
+            },
+          },
+        }}
+      />
       <main className="w-full max-w-xl px-4 py-12 flex flex-col gap-8">
         {/* 헤더 */}
         <div className="flex justify-between items-center mb-2">
@@ -393,12 +453,12 @@ export default function Home() {
           )}
         </section>
 
-        {/* 카테고리/세부카테고리 + 버튼 */}
+        {/* 카테고리/세부카테고리 */}
         <section className="flex gap-3 w-full">
           <select
             className={`flex-1 rounded-2xl border px-5 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#3182f6] transition-colors ${
-              isDarkMode 
-                ? 'bg-[#1e293b]/80 border-[#334155] text-white' 
+              isDarkMode
+                ? 'bg-[#1e293b]/80 border-[#334155] text-white'
                 : 'bg-[#f8fafc] border-[#e2e8f0] text-[#1e293b]'
             }`}
             value={selectedCategory}
@@ -410,8 +470,8 @@ export default function Home() {
           </select>
           <select
             className={`flex-1 rounded-2xl border px-5 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#3182f6] transition-colors ${
-              isDarkMode 
-                ? 'bg-[#1e293b]/80 border-[#334155] text-white' 
+              isDarkMode
+                ? 'bg-[#1e293b]/80 border-[#334155] text-white'
                 : 'bg-[#f8fafc] border-[#e2e8f0] text-[#1e293b]'
             }`}
             value={selectedSub}
@@ -421,11 +481,28 @@ export default function Home() {
               <option key={opt} value={opt}>{opt}</option>
             ))}
           </select>
+        </section>
+
+        {/* 질문 생성 버튼 2개 */}
+        <section className="flex gap-3 w-full">
           <button
-            className="rounded-2xl bg-[#3182f6] text-white font-bold px-6 py-3 shadow hover:bg-[#2563eb] transition-all text-base"
-            onClick={generateQuestion}
+            className={`flex-1 rounded-2xl font-bold px-6 py-3 shadow transition-all text-base ${
+              isDarkMode
+                ? 'bg-[#1e293b]/80 border border-[#334155] text-white hover:bg-[#2d3a4f]'
+                : 'bg-white border border-[#e2e8f0] text-[#1e293b] hover:bg-[#f8fafc]'
+            }`}
+            onClick={generateDBQuestion}
+            disabled={loading}
           >
-            랜덤 질문 생성
+            💾 일반 질문
+          </button>
+          <button
+            className="flex-1 rounded-2xl bg-gradient-to-r from-[#3182f6] to-[#8b5cf6] text-white font-bold px-6 py-3 shadow hover:from-[#2563eb] hover:to-[#7c3aed] transition-all text-base disabled:opacity-60"
+            onClick={generateAIQuestion}
+            disabled={loading || remainingQuota <= 0}
+            title={remainingQuota > 0 ? "AI가 새로운 질문을 생성합니다 (약 2-3초 소요)" : "오늘의 AI 생성 횟수를 모두 사용했습니다"}
+          >
+            ✨ AI 질문 생성 ({remainingQuota}/1)
           </button>
         </section>
 
