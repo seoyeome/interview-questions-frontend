@@ -3,9 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { SunIcon, MoonIcon, UserCircleIcon } from '@heroicons/react/24/outline';
-import { apiClient } from '@/lib/api';
+import { apiClient, ApiError } from '@/lib/api';
+import { createLogger } from '@/lib/logger';
 import toast, { Toaster } from 'react-hot-toast';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
+import Header from '@/components/Header';
+
+const logger = createLogger('Dashboard');
 
 // API 응답 타입 정의
 interface Category {
@@ -59,6 +64,7 @@ export default function Home() {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [remainingQuota, setRemainingQuota] = useState<number>(1); // AI 남은 횟수
+  const [tutorialCompleted, setTutorialCompleted] = useState(true); // 튜토리얼 완료 여부
 
   // 로그인 상태 확인
   useEffect(() => {
@@ -91,6 +97,84 @@ export default function Home() {
     }
   };
 
+  // 튜토리얼 상태 조회
+  const fetchTutorialStatus = async () => {
+    try {
+      const response = await apiClient.get('/user/tutorial-status');
+      if (response && typeof response.data === 'boolean') {
+        setTutorialCompleted(response.data);
+      }
+    } catch (err) {
+      console.error('튜토리얼 상태 조회 실패:', err);
+    }
+  };
+
+  // 튜토리얼 시작
+  const startTutorial = () => {
+    const driverObj = driver({
+      showProgress: true,
+      steps: [
+        {
+          element: '#category-select',
+          popover: {
+            title: '카테고리 선택',
+            description: '면접 질문의 카테고리를 선택하세요. Java, Kotlin, Spring 등 다양한 주제가 있습니다.',
+            side: 'bottom',
+            align: 'start'
+          }
+        },
+        {
+          element: '#subcategory-select',
+          popover: {
+            title: '세부 카테고리',
+            description: '카테고리 내에서 더 구체적인 주제를 선택할 수 있습니다.',
+            side: 'bottom',
+            align: 'start'
+          }
+        },
+        {
+          element: '#db-question-btn',
+          popover: {
+            title: '일반 질문',
+            description: 'DB에 저장된 질문을 랜덤으로 가져옵니다. 빠르고 안정적입니다.',
+            side: 'top',
+            align: 'start'
+          }
+        },
+        {
+          element: '#ai-question-btn',
+          popover: {
+            title: 'AI 질문 생성',
+            description: 'AI가 새로운 질문을 생성합니다. 1일 1회 제한이 있으며, DB에 저장된 질문이 있으면 횟수를 소모하지 않습니다.',
+            side: 'top',
+            align: 'end'
+          }
+        },
+        {
+          element: '#answer-textarea',
+          popover: {
+            title: '답변 작성',
+            description: '질문에 대한 답변을 작성해보세요. 모범 답안과 비교할 수 있습니다.',
+            side: 'top',
+            align: 'start'
+          }
+        }
+      ],
+      onDestroyed: async () => {
+        // 튜토리얼 완료 처리
+        try {
+          await apiClient.post('/user/tutorial-complete');
+          setTutorialCompleted(true);
+          toast.success('튜토리얼을 완료했습니다!');
+        } catch (err) {
+          console.error('튜토리얼 완료 처리 실패:', err);
+        }
+      }
+    });
+
+    driverObj.drive();
+  };
+
   // 백엔드 API에서 데이터 가져오기
   useEffect(() => {
     const fetchData = async () => {
@@ -110,6 +194,9 @@ export default function Home() {
 
         // Quota 조회
         await fetchRemainingQuota();
+
+        // 튜토리얼 상태 조회
+        await fetchTutorialStatus();
       } catch (err) {
         console.error('데이터 로딩 중 오류 발생:', err);
       } finally {
@@ -119,6 +206,17 @@ export default function Home() {
 
     fetchData();
   }, []);
+
+  // 튜토리얼 자동 시작
+  useEffect(() => {
+    if (mounted && !loading && !tutorialCompleted) {
+      // 데이터 로딩 완료 후 약간의 지연을 두고 시작
+      const timer = setTimeout(() => {
+        startTutorial();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [mounted, loading, tutorialCompleted]);
 
   useEffect(() => {
     setMounted(true);
@@ -211,17 +309,21 @@ export default function Home() {
 
   // AI 질문 하이브리드 (DB 우선 → API fallback)
   const generateAIQuestion = async () => {
+    logger.debug('AI 질문 생성 시작');
     setLoading(true);
 
     try {
       const difficulties: ('EASY' | 'MEDIUM' | 'HARD')[] = ['EASY', 'MEDIUM', 'HARD'];
       const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
 
-      const aiQuestion = await apiClient.post('/ai/question', {
-        category: selectedCategory === '전체' ? '기술 면접' : selectedCategory,
-        subCategory: selectedSub === '전체' ? '일반' : selectedSub,
+      const requestBody = {
+        category: selectedCategory === '전체' ? 'ALL' : selectedCategory,
+        subCategory: selectedSub === '전체' ? 'ALL' : selectedSub,
         difficulty: randomDifficulty
-      });
+      };
+      logger.debug('AI 질문 요청', requestBody);
+
+      const aiQuestion = await apiClient.post('/ai/question', requestBody);
 
       if (aiQuestion.content) {
         setCurrentQuestionInfo({
@@ -257,9 +359,9 @@ export default function Home() {
         toast.error('AI 질문 생성에 실패했습니다.');
       }
     } catch (error: any) {
-      console.error('AI 질문 생성 실패:', error);
+      logger.error('AI 질문 생성 실패', error);
 
-      if (error.response?.status === 429) {
+      if (error instanceof ApiError && error.status === 429) {
         toast.error('오늘의 AI 질문 생성 횟수를 모두 사용했습니다. 내일 다시 시도해주세요.', {
           duration: 4000,
           icon: '⏰'
@@ -293,90 +395,32 @@ export default function Home() {
         .map(s => s.name)];
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-[#0f172a]' : 'bg-[#fff]'} flex items-center justify-center`}>
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          style: {
-            background: isDarkMode ? '#1e293b' : '#ffffff',
-            color: isDarkMode ? '#ffffff' : '#1e293b',
-            border: isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#ffffff',
+    <>
+      <Header />
+      <div className={`min-h-screen pt-20 ${isDarkMode ? 'bg-[#0f172a]' : 'bg-[#fff]'} flex items-center justify-center`}>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: {
+              background: isDarkMode ? '#1e293b' : '#ffffff',
+              color: isDarkMode ? '#ffffff' : '#1e293b',
+              border: isDarkMode ? '1px solid #334155' : '1px solid #e2e8f0',
             },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#ffffff',
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#ffffff',
+              },
             },
-          },
-        }}
-      />
-      <main className="w-full max-w-xl px-4 py-12 flex flex-col gap-8">
-        {/* 헤더 */}
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center gap-3">
-            {isLoggedIn ? (
-              <>
-                <button
-                  onClick={() => router.push('/profile')}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDarkMode
-                      ? 'bg-[#1e293b] border border-[#334155] text-white hover:bg-[#2d3a4f]'
-                      : 'bg-white border border-[#e2e8f0] text-gray-700 hover:bg-[#f8fafc]'
-                  }`}
-                  aria-label="프로필"
-                >
-                  <UserCircleIcon className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isDarkMode
-                      ? 'bg-[#1e293b] border border-[#334155] text-white hover:bg-[#2d3a4f]'
-                      : 'bg-white border border-[#e2e8f0] text-gray-700 hover:bg-[#f8fafc]'
-                  }`}
-                >
-                  로그아웃
-                </button>
-              </>
-            ) : (
-              <a
-                href="/auth/login"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isDarkMode
-                    ? 'bg-[#3b82f6] text-white hover:bg-[#2563eb]'
-                    : 'bg-[#3b82f6] text-white hover:bg-[#2563eb]'
-                }`}
-              >
-                로그인
-              </a>
-            )}
-          </div>
-          <div className="flex-1 text-center">
-            <h1 className="text-3xl font-bold mb-2 tracking-tight">면접 질문 생성기</h1>
-            <p className="text-base text-[#94a3b8]">카테고리를 선택하고 랜덤 질문을 받아보세요</p>
-          </div>
-          <button
-            onClick={toggleTheme}
-            className={`p-3 rounded-2xl shadow border transition-colors ${
-              isDarkMode
-                ? 'bg-[#1e293b] border-[#334155] hover:bg-[#2d3a4f]'
-                : 'bg-white/80 border-[#f1f5f9] hover:bg-[#f8fafc]'
-            }`}
-            aria-label={isDarkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
-          >
-            {isDarkMode ? (
-              <SunIcon className="w-6 h-6 text-[#fbbf24]" />
-            ) : (
-              <MoonIcon className="w-6 h-6 text-[#64748b]" />
-            )}
-          </button>
-        </div>
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#ffffff',
+              },
+            },
+          }}
+        />
+        <main className="w-full max-w-xl px-4 py-12 flex flex-col gap-8">
 
         {/* 로딩 상태 표시 */}
         {loading && (
@@ -456,6 +500,7 @@ export default function Home() {
         {/* 카테고리/세부카테고리 */}
         <section className="flex gap-3 w-full">
           <select
+            id="category-select"
             className={`flex-1 rounded-2xl border px-5 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#3182f6] transition-colors ${
               isDarkMode
                 ? 'bg-[#1e293b]/80 border-[#334155] text-white'
@@ -469,6 +514,7 @@ export default function Home() {
             ))}
           </select>
           <select
+            id="subcategory-select"
             className={`flex-1 rounded-2xl border px-5 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#3182f6] transition-colors ${
               isDarkMode
                 ? 'bg-[#1e293b]/80 border-[#334155] text-white'
@@ -486,6 +532,7 @@ export default function Home() {
         {/* 질문 생성 버튼 2개 */}
         <section className="flex gap-3 w-full">
           <button
+            id="db-question-btn"
             className={`flex-1 rounded-2xl font-bold px-6 py-3 shadow transition-all text-base ${
               isDarkMode
                 ? 'bg-[#1e293b]/80 border border-[#334155] text-white hover:bg-[#2d3a4f]'
@@ -497,6 +544,7 @@ export default function Home() {
             💾 일반 질문
           </button>
           <button
+            id="ai-question-btn"
             className="flex-1 rounded-2xl bg-gradient-to-r from-[#3182f6] to-[#8b5cf6] text-white font-bold px-6 py-3 shadow hover:from-[#2563eb] hover:to-[#7c3aed] transition-all text-base disabled:opacity-60"
             onClick={generateAIQuestion}
             disabled={loading || remainingQuota <= 0}
@@ -514,6 +562,7 @@ export default function Home() {
         }`}>
           <div className="font-bold text-lg mb-2">나의 답변</div>
           <textarea
+            id="answer-textarea"
             placeholder="여기에 답변을 작성해주세요..."
             className={`w-full p-5 rounded-2xl border resize-none focus:outline-none focus:ring-2 focus:ring-[#3182f6] min-h-[120px] transition-colors ${
               isDarkMode
@@ -556,7 +605,8 @@ export default function Home() {
             </div>
           )}
         </section>
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
