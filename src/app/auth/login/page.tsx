@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
-import { getBackendUrl, apiClient } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 interface ValidationErrors {
   email?: string;
@@ -122,7 +122,8 @@ function LoginForm() {
   };
 
   const handleKakaoLogin = () => {
-    window.location.href = `${getBackendUrl()}/oauth2/authorization/kakao`;
+    // Vercel Rewrites를 통해 Same-Site 구조로 요청 (보안 강화)
+    window.location.href = '/oauth2/authorization/kakao';
   };
 
   return (
