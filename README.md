@@ -5,60 +5,49 @@
 ## 🛠 기술 스택
 
 ### 프레임워크 & 라이브러리
-- [Next.js](https://nextjs.org/) 14+ - React 프레임워크 (App Router)
-- [React](https://reactjs.org/) 18+ - UI 라이브러리
+- [Next.js](https://nextjs.org/) 15 - React 프레임워크 (App Router, Turbopack)
+- [React](https://reactjs.org/) 19 - UI 라이브러리
 - [TypeScript](https://www.typescriptlang.org/) - 정적 타입 지원
 - [TailwindCSS](https://tailwindcss.com/) - 유틸리티 우선 CSS 프레임워크
-- [Framer Motion](https://www.framer.com/motion/) - 애니메이션 라이브러리
-
-### 상태 관리
-- [Zustand](https://zustand-demo.pmnd.rs/) - 전역 상태 관리
 
 ### UI/UX
 - [next-themes](https://github.com/pacocoursey/next-themes) - 다크모드/라이트모드 지원
+- [Driver.js](https://driverjs.com/) - 튜토리얼 및 온보딩 가이드
+- [react-hot-toast](https://react-hot-toast.com/) - 토스트 알림
 - 반응형 디자인 (Mobile, Tablet, Desktop)
-- 애니메이션 및 트랜지션
 
 ### 개발 도구
 - [ESLint](https://eslint.org/) - 코드 린팅
 - [PostCSS](https://postcss.org/) - CSS 전처리기
-- [pnpm](https://pnpm.io/) - 빠르고 디스크 효율적인 패키지 매니저
+- [npm](https://www.npmjs.com/) - 패키지 매니저
 
 ## ✨ 주요 기능
 
+### AI 질문 생성
+- Google Gemini API를 활용한 맞춤형 면접 질문 생성
+- 카테고리/서브카테고리/난이도별 질문 생성
+- 일일 생성 횟수 제한 (할당량 관리)
+
 ### 질문 학습
-- 카테고리/서브카테고리별 질문 검색
-- AI 생성 질문 설명 확인
-- 질문 필터링 및 정렬
+- 카테고리별 질문 분류 (Backend, Frontend, Database, DevOps, CS)
+- 서브카테고리별 상세 분류
+- 난이도별 필터링 (쉬움, 보통, 어려움)
 
 ### 사용자 인증
-- 이메일/비밀번호 회원가입 및 로그인
-- 카카오 소셜 로그인 (OAuth 2.0)
-- JWT 쿠키 기반 인증 (자동 갱신)
-- 로그아웃
-
-### 사용자 프로필 관리
-- 프로필 정보 조회
-- 닉네임 수정
-- 비밀번호 변경 (이메일 가입자만)
-- 회원 탈퇴 (30일 데이터 보관 정책 안내)
+- 카카오 OAuth 2.0 소셜 로그인
+- JWT 쿠키 기반 인증 (HttpOnly, Secure)
 
 ### UI/UX
 - 다크모드/라이트모드 자동 전환
-- 시스템 테마 감지 및 동기화
-- 부드러운 페이지 전환 애니메이션
+- Driver.js 기반 튜토리얼 시스템
+- react-hot-toast 알림
 - 모바일 최적화 반응형 디자인
-
-### 관리자 기능
-- 질문 생성, 수정, 삭제
-- 카테고리 관리
-- 사용자 관리
 
 ## 🚀 시작하기
 
 ### 필수 요구사항
-- Node.js 18.0.0 이상
-- pnpm 8.15.4 이상
+- Node.js 18 이상
+- npm
 
 ### 설치 방법
 
@@ -70,7 +59,7 @@ cd interview-questions-frontend
 
 2. 의존성 설치
 ```bash
-pnpm install
+npm install
 ```
 
 3. 환경 변수 설정
@@ -81,7 +70,7 @@ echo "NEXT_PUBLIC_BACKEND_URL=http://localhost:8080" > .env.local
 
 4. 개발 서버 실행
 ```bash
-pnpm dev
+npm run dev
 ```
 
 이제 [http://localhost:3000](http://localhost:3000)에서 프로젝트를 확인할 수 있습니다.
@@ -90,46 +79,30 @@ pnpm dev
 
 ```bash
 # 빌드
-pnpm build
+npm run build
 
 # 프로덕션 서버 실행
-pnpm start
+npm start
 ```
-
-## 📦 자동화된 의존성 관리
-
-이 프로젝트는 GitHub Actions를 통해 자동화된 의존성 관리를 제공합니다:
-
-- 매주 월요일마다 자동으로 의존성 업데이트 체크
-- 보안 업데이트 발생 시 자동 PR 생성
-- 버그 수정(패치) 업데이트 시 자동 PR 생성
-- 메이저/마이너 버전 업데이트는 이슈로 생성
 
 ## 📁 프로젝트 구조
 
 ```
 src/
-├── app/                      # Next.js 14+ App Router
-│   ├── layout.tsx            # 루트 레이아웃 (테마 프로바이더)
-│   ├── page.tsx              # 메인 페이지 (질문 목록)
-│   ├── metadata.ts           # 메타데이터 설정
-│   ├── globals.css           # 전역 스타일 (다크모드 변수)
-│   ├── providers.tsx         # 클라이언트 프로바이더
-│   ├── auth/                 # 인증 관련 페이지
-│   │   ├── login/            # 로그인 페이지
-│   │   └── signup/           # 회원가입 페이지
-│   ├── profile/              # 사용자 프로필 페이지
-│   │   └── page.tsx          # 프로필, 닉네임 수정, 비밀번호 변경, 탈퇴
-│   ├── dashboard/            # 대시보드
-│   └── admin/                # 관리자 페이지
+├── app/                      # Next.js 15 App Router
+│   ├── layout.tsx            # 루트 레이아웃
+│   ├── page.tsx              # 랜딩 페이지
+│   ├── globals.css           # 전역 스타일 (다크모드 CSS 변수)
+│   ├── dashboard/            # 대시보드 (AI 질문 생성)
+│   │   └── page.tsx          # 카테고리/서브카테고리 선택, 질문 생성
+│   ├── oauth2/               # OAuth2 리다이렉트 페이지
+│   │   └── redirect/
+│   └── api/                  # API 라우트 핸들러
 ├── components/               # 재사용 가능한 컴포넌트
 ├── lib/                      # 유틸리티 및 헬퍼
-│   └── api.ts                # API 클라이언트 (axios wrapper)
-├── hooks/                    # 커스텀 React 훅
-│   └── useTheme.ts           # 테마 관리 훅
-├── store/                    # Zustand 상태 관리
-├── types/                    # TypeScript 타입 정의
-└── styles/                   # 추가 스타일
+│   ├── api.ts                # API 클라이언트 (fetch wrapper)
+│   └── logger.ts             # 환경별 로깅 시스템
+└── types/                    # TypeScript 타입 정의
 ```
 
 ## 🎨 테마 시스템
@@ -161,57 +134,57 @@ src/
 ## 🌐 주요 페이지
 
 ### 공개 페이지
-- `/` - 메인 페이지 (질문 목록, 검색, 필터링)
-- `/auth/login` - 로그인 (이메일/카카오)
-- `/auth/signup` - 회원가입
+- `/` - 랜딩 페이지 (카카오 로그인)
+- `/oauth2/redirect` - OAuth2 로그인 콜백
 
 ### 인증 필요 페이지
-- `/profile` - 사용자 프로필
-  - 프로필 정보 조회
-  - 닉네임 수정
-  - 비밀번호 변경
-  - 회원 탈퇴 (30일 보관 정책 안내)
-- `/dashboard` - 개인 대시보드
-
-### 관리자 페이지
-- `/admin` - 관리자 대시보드
-- `/admin/questions` - 질문 관리
-- `/admin/categories` - 카테고리 관리
+- `/dashboard` - AI 질문 생성 대시보드
+  - 카테고리/서브카테고리 선택
+  - 난이도 선택
+  - AI 질문 생성 및 확인
+  - 튜토리얼 가이드 (Driver.js)
 
 ## 🔌 API 통신
 
 ### API 클라이언트 구조
 ```typescript
 // lib/api.ts
-import axios from 'axios';
+class ApiClient {
+  private baseUrl = '/api/v1';
+  private logger = createLogger('API Client');
 
-const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL,
-  withCredentials: true, // 쿠키 포함
-});
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    const url = `${this.baseUrl}${normalizePath(endpoint)}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      credentials: 'include', // 쿠키 포함
+    });
 
-// 에러 처리
-apiClient.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      // 인증 오류 처리
+    if (!response.ok) {
+      throw new ApiError(response.status, data.message || 'API 요청에 실패했습니다', data);
     }
-    throw error;
+
+    return data;
   }
-);
+}
 ```
 
-### 주요 API 호출
+### 환경별 로깅
 ```typescript
-// 사용자 프로필 조회
-const profile = await apiClient.get<UserProfile>('/user/profile');
+// lib/logger.ts
+class Logger {
+  debug(message: string, ...args: any[]): void {
+    if (isDevelopment) {
+      console.log(this.formatMessage('DEBUG', message), ...args);
+    }
+  }
 
-// 로그인
-await apiClient.post('/auth/login', { email, password });
-
-// 질문 목록 조회
-const questions = await apiClient.get('/questions');
+  error(message: string, ...args: any[]): void {
+    // ERROR는 항상 출력 (프로덕션에서도)
+    console.error(this.formatMessage('ERROR', message), ...args);
+  }
+}
 ```
 
 ## 🔧 설정 파일
@@ -244,42 +217,40 @@ NEXT_PUBLIC_BACKEND_URL=https://api.yourdomain.com
 2. 다크모드 지원을 위해 `useTheme` 훅 사용
 3. CSS 변수 활용 (`--text-primary`, `--bg-primary` 등)
 
-### 새 컴포넌트 추가
-1. `src/components/[컴포넌트명].tsx` 생성
-2. TypeScript 인터페이스 정의
-3. 다크모드 스타일 적용
-
 ### API 연동
 1. `lib/api.ts`의 `apiClient` 사용
-2. 에러 처리 구현
-3. TypeScript 타입 정의
+2. `lib/logger.ts`의 `createLogger`로 로깅
+3. ApiError 클래스로 에러 처리
+
 
 ## 📊 성능 최적화
 
-- Next.js 자동 코드 스플리팅
-- 이미지 최적화 (`next/image`)
-- 폰트 최적화 (로컬 폰트 사용)
-- 동적 임포트로 번들 크기 최적화
+- **Next.js 15 Turbopack**: 빠른 개발 서버 시작 및 HMR
+- **자동 코드 스플리팅**: 페이지별 번들 분리로 초기 로딩 최적화
+- **동적 임포트**: 필요한 시점에 컴포넌트 로드
+- **환경별 로깅**: 프로덕션에서 불필요한 로그 제거로 성능 향상
 
 ## 🔐 보안
 
-- JWT 토큰은 HttpOnly 쿠키로 관리 (XSS 방지)
-- CSRF 보호
-- 환경 변수를 통한 민감 정보 관리
-- API 요청 시 자동으로 쿠키 포함 (`withCredentials: true`)
+- **JWT 토큰 보호**: HttpOnly, Secure 쿠키로 저장 (XSS 공격 방지)
+- **쿠키 자동 포함**: `credentials: 'include'` 설정으로 인증 쿠키 자동 전송
+- **환경 변수 분리**: `.env.local` 파일로 민감 정보 관리
+- **타입 안전성**: TypeScript로 런타임 에러 최소화
+- **에러 정보 보호**: 프로덕션에서 상세 에러 로그 숨김
 
 ## 📱 반응형 디자인
 
 ### 브레이크포인트
-- Mobile: < 640px
-- Tablet: 640px - 1024px
-- Desktop: > 1024px
+- **Mobile**: < 640px
+- **Tablet**: 640px - 1024px
+- **Desktop**: > 1024px
+
+### 다크모드/라이트모드
+- 시스템 테마 자동 감지
+- 사용자 선택 테마 localStorage 저장
+- CSS 변수 기반 테마 전환으로 깜빡임 없음
 
 ### 테스트된 환경
 - Chrome, Firefox, Safari (최신 버전)
 - iOS Safari, Chrome Mobile
 - 다양한 화면 크기 (375px ~ 1920px)
-
-## 📝 라이선스
-
-이 프로젝트는 MIT 라이선스를 따릅니다.
