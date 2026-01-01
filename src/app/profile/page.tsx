@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { apiClient } from '@/lib/api';
+import Header from '@/components/Header';
 
 interface UserProfile {
   id: number;
@@ -154,17 +155,13 @@ export default function ProfilePage() {
   const isLocalUser = profile.provider === 'LOCAL';
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-[#0f172a]' : 'bg-[#fff]'} py-12 px-4 sm:px-6 lg:px-8`}>
-      <div className="max-w-3xl mx-auto space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-extrabold text-[var(--text-primary)]">마이페이지</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700"
-          >
-            로그아웃
-          </button>
-        </div>
+    <>
+      <Header />
+      <div className={`min-h-screen pt-20 ${isDarkMode ? 'bg-[#0f172a]' : 'bg-[#fff]'} py-12 px-4 sm:px-6 lg:px-8`}>
+        <div className="max-w-3xl mx-auto space-y-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-extrabold text-[var(--text-primary)]">마이페이지</h1>
+          </div>
 
         {successMessage && (
           <div className="rounded-md bg-green-50 dark:bg-green-900/20 p-4">
@@ -397,7 +394,8 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

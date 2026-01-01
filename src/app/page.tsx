@@ -127,12 +127,6 @@ export default function LandingPage() {
                 <MoonIcon className="w-6 h-6 text-[#64748b]" />
               )}
             </button>
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="px-6 py-2.5 bg-[#3b82f6] text-white rounded-lg font-medium hover:bg-[#2563eb] transition-colors"
-            >
-              시작하기
-            </button>
           </div>
         </div>
       </header>
