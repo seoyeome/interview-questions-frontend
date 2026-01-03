@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { apiClient, ApiError } from '@/lib/api';
 import { createLogger } from '@/lib/logger';
@@ -9,6 +8,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import Header from '@/components/Header';
+import ReactMarkdown from 'react-markdown';
 
 const logger = createLogger('Dashboard');
 
@@ -42,12 +42,8 @@ interface CurrentQuestionInfo {
 }
 
 export default function Home() {
-  const router = useRouter();
   const { theme, setTheme, systemTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-
-  // 로그인 상태
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // API 데이터 상태
   const [categories, setCategories] = useState<Category[]>([]);
@@ -61,29 +57,9 @@ export default function Home() {
   const [selectedSub, setSelectedSub] = useState('전체');
   const [currentQuestionInfo, setCurrentQuestionInfo] = useState<CurrentQuestionInfo | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
-  const [showExplanation, setShowExplanation] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [remainingQuota, setRemainingQuota] = useState<number>(1); // AI 남은 횟수
   const [tutorialCompleted, setTutorialCompleted] = useState(true); // 튜토리얼 완료 여부
-
-  // 로그인 상태 확인
-  useEffect(() => {
-    setIsLoggedIn(true); // 미들웨어에서 이미 인증 확인됨
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await apiClient.post('/auth/logout');
-      setIsLoggedIn(false);
-      // 랜딩 페이지로 리다이렉트
-      window.location.href = '/';
-    } catch (err) {
-      console.error('로그아웃 실패:', err);
-      // 실패해도 로컬 상태 업데이트 및 리다이렉트
-      setIsLoggedIn(false);
-      window.location.href = '/';
-    }
-  };
 
   // 남은 quota 조회
   const fetchRemainingQuota = async () => {
@@ -235,7 +211,6 @@ export default function Home() {
     setSelectedCategory(cat);
     setSelectedSub('전체');
     setCurrentQuestionInfo(null);
-    setShowExplanation(false);
     setShowAnswer(false);
     setUserAnswer('');
   };
@@ -244,7 +219,6 @@ export default function Home() {
   const handleSub = (sub: string) => {
     setSelectedSub(sub);
     setCurrentQuestionInfo(null);
-    setShowExplanation(false);
     setShowAnswer(false);
     setUserAnswer('');
   };
@@ -296,7 +270,6 @@ export default function Home() {
 
       if (dbQuestion) {
         setCurrentQuestionInfo(dbQuestion);
-        setShowExplanation(false);
         setShowAnswer(false);
         setUserAnswer('');
       } else {
@@ -334,7 +307,6 @@ export default function Home() {
           difficulty: String(aiQuestion.difficulty),
           source: aiQuestion.fromCache ? 'AI' : 'AI'
         });
-        setShowExplanation(false);
         setShowAnswer(false);
         setUserAnswer('');
 
@@ -373,9 +345,6 @@ export default function Home() {
       setLoading(false);
     }
   };
-
-  // 해설 보기
-  const handleShowExplanation = () => setShowExplanation((v) => !v);
 
   // 답변 확인하기
   const handleShowAnswer = () => setShowAnswer((v) => !v);
@@ -478,23 +447,6 @@ export default function Home() {
           <div className="font-bold text-lg mb-2">
             {currentQuestionInfo ? currentQuestionInfo.content : '질문을 불러오세요'}
           </div>
-          {currentQuestionInfo && (
-            <button
-              className="self-end text-xs text-[#64748b] hover:underline"
-              onClick={handleShowExplanation}
-            >
-              {showExplanation ? '해설 닫기' : '해설 보기'}
-            </button>
-          )}
-          {showExplanation && currentQuestionInfo && (
-            <div className={`w-full rounded-xl p-4 text-sm mt-2 ${
-              isDarkMode
-                ? 'bg-[#0f172a]/50 text-[#cbd5e1]'
-                : 'bg-[#f1f5f9] text-[#64748b]'
-            }`}>
-              {currentQuestionInfo.explanation}
-            </div>
-          )}
         </section>
 
         {/* 카테고리/세부카테고리 */}
@@ -597,10 +549,10 @@ export default function Home() {
               }`}>
                 💡 모범 답변
               </div>
-              <div className={`text-sm whitespace-pre-wrap ${
-                isDarkMode ? 'text-emerald-100' : 'text-emerald-900'
+              <div className={`text-sm prose prose-sm max-w-none ${
+                isDarkMode ? 'text-emerald-100 prose-invert' : 'text-emerald-900'
               }`}>
-                {currentQuestionInfo.explanation}
+                <ReactMarkdown>{currentQuestionInfo.explanation}</ReactMarkdown>
               </div>
             </div>
           )}
