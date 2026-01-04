@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes';
 import { useRouter, useParams } from 'next/navigation';
 import Header from '@/components/Header';
 import { Post } from '@/types/post';
+import { apiClient } from '@/lib/api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const CATEGORY_MAP: Record<string, string> = {
@@ -39,11 +40,8 @@ export default function PostDetailPage() {
   const fetchPost = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/posts/${postId}`);
-      if (!response.ok) throw new Error('게시글 조회 실패');
-
-      const data: Post = await response.json();
-      setPost(data);
+      const data = await apiClient.get(`/posts/${postId}`);
+      setPost(data as unknown as Post);
     } catch (error) {
       console.error('게시글 조회 오류:', error);
       toast.error('게시글을 불러오는데 실패했습니다');
@@ -54,12 +52,9 @@ export default function PostDetailPage() {
 
   const checkOwnership = async () => {
     try {
-      const response = await fetch('/api/auth/me');
-      if (response.ok) {
-        const userData = await response.json();
-        if (post && userData.id === post.userId) {
-          setIsOwner(true);
-        }
+      const userData = await apiClient.get('/user/profile');
+      if (post && (userData as any).data?.id === post.userId) {
+        setIsOwner(true);
       }
     } catch (error) {
       // 로그인하지 않은 경우 무시
@@ -74,13 +69,7 @@ export default function PostDetailPage() {
     if (!confirm('정말 삭제하시겠습니까?')) return;
 
     try {
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) throw new Error('게시글 삭제 실패');
-
+      await apiClient.delete(`/posts/${postId}`);
       toast.success('게시글이 삭제되었습니다');
       router.push('/community');
     } catch (error) {

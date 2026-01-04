@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import { PostCreateRequest } from '@/types/post';
+import { apiClient, ApiError } from '@/lib/api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const CATEGORY_OPTIONS = [
@@ -46,29 +47,16 @@ export default function NewPostPage() {
     try {
       setSubmitting(true);
 
-      const response = await fetch('/api/posts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('로그인이 필요합니다');
-          router.push('/auth/signin');
-          return;
-        }
-        throw new Error('게시글 작성 실패');
-      }
-
-      const data = await response.json();
+      const data = await apiClient.post('/posts', formData);
       toast.success('게시글이 작성되었습니다');
-      router.push(`/community/${data.id}`);
+      router.push(`/community/${(data as any).id}`);
     } catch (error) {
       console.error('게시글 작성 오류:', error);
+      if (error instanceof ApiError && error.status === 401) {
+        toast.error('로그인이 필요합니다');
+        router.push('/auth/signin');
+        return;
+      }
       toast.error('게시글 작성에 실패했습니다');
     } finally {
       setSubmitting(false);
