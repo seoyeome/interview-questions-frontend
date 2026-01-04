@@ -160,16 +160,12 @@ export default function Home() {
         const [categoryData, subCategoryData] = await Promise.all([
           apiClient.get('/categories'),
           apiClient.get('/sub-categories'),
+          fetchRemainingQuota(),
+          fetchTutorialStatus(),
         ]);
 
         setCategories(categoryData as unknown as Category[]);
         setSubCategories(subCategoryData as unknown as SubCategory[]);
-
-        // Quota 조회
-        await fetchRemainingQuota();
-
-        // 튜토리얼 상태 조회
-        await fetchTutorialStatus();
       } catch (err) {
         console.error('데이터 로딩 중 오류 발생:', err);
       } finally {
