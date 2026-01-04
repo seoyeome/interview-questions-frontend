@@ -48,7 +48,6 @@ export default function Home() {
   // API 데이터 상태
   const [categories, setCategories] = useState<Category[]>([]);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -158,15 +157,13 @@ export default function Home() {
       setError(null);
 
       try {
-        const [categoryData, subCategoryData, questionData] = await Promise.all([
+        const [categoryData, subCategoryData] = await Promise.all([
           apiClient.get('/categories'),
           apiClient.get('/sub-categories'),
-          apiClient.get('/questions'),
         ]);
 
         setCategories(categoryData as unknown as Category[]);
         setSubCategories(subCategoryData as unknown as SubCategory[]);
-        setQuestions(questionData as unknown as Question[]);
 
         // Quota 조회
         await fetchRemainingQuota();
@@ -223,50 +220,48 @@ export default function Home() {
     setUserAnswer('');
   };
 
-  // DB에서 랜덤 질문 가져오기 (폴백 함수)
-  const getRandomQuestionFromDB = () => {
-    let filtered = [...questions];
+  // DB에서 랜덤 질문 가져오기 (API 호출)
+  const getRandomQuestionFromDB = async (): Promise<CurrentQuestionInfo | null> => {
+    try {
+      const categoryId = selectedCategory !== '전체'
+        ? categories.find(c => c.name === selectedCategory)?.id
+        : null;
 
-    if (selectedCategory !== '전체') {
-      const categoryId = categories.find(c => c.name === selectedCategory)?.id;
-      if (categoryId) {
-        const subCategoryIds = subCategories
-          .filter(s => s.categoryId === categoryId)
-          .map(s => s.id);
-        filtered = filtered.filter(q => subCategoryIds.includes(q.subCategoryId));
-      }
-    }
+      const subCategoryId = selectedSub !== '전체'
+        ? subCategories.find(s => s.name === selectedSub)?.id
+        : null;
 
-    if (selectedSub !== '전체') {
-      const subCategoryId = subCategories.find(s => s.name === selectedSub)?.id;
-      if (subCategoryId) {
-        filtered = filtered.filter(q => q.subCategoryId === subCategoryId);
-      }
-    }
+      const params = new URLSearchParams();
+      if (categoryId) params.append('categoryId', categoryId);
+      if (subCategoryId) params.append('subCategoryId', subCategoryId);
 
-    if (filtered.length > 0) {
-      const picked = filtered[Math.floor(Math.random() * filtered.length)];
-      const subCat = subCategories.find(s => s.id === picked.subCategoryId);
+      const response = await apiClient.get(`/questions/random?${params}`);
+      const question = response as unknown as Question | null;
+
+      if (!question) return null;
+
+      const subCat = subCategories.find(s => s.id === question.subCategoryId);
       const cat = categories.find(c => c.id === subCat?.categoryId);
 
       return {
-        content: picked.content,
-        explanation: picked.explanation || '해설이 준비되지 않았습니다.',
+        content: question.content,
+        explanation: question.explanation || '해설이 준비되지 않았습니다.',
         categoryName: cat?.name || '전체',
         subCategoryName: subCat?.name || '전체',
-        difficulty: picked.difficulty,
+        difficulty: question.difficulty,
         source: 'DB' as const
       };
+    } catch (error) {
+      console.error('랜덤 질문 조회 오류:', error);
+      return null;
     }
-
-    return null;
   };
 
   // DB 질문 생성 (일반 질문)
-  const generateDBQuestion = () => {
+  const generateDBQuestion = async () => {
     setLoading(true);
     try {
-      const dbQuestion = getRandomQuestionFromDB();
+      const dbQuestion = await getRandomQuestionFromDB();
 
       if (dbQuestion) {
         setCurrentQuestionInfo(dbQuestion);
@@ -274,7 +269,11 @@ export default function Home() {
         setUserAnswer('');
       } else {
         setCurrentQuestionInfo(null);
+        toast.error('선택한 조건에 맞는 질문이 없습니다');
       }
+    } catch (error) {
+      console.error('질문 생성 오류:', error);
+      toast.error('질문을 불러오는데 실패했습니다');
     } finally {
       setLoading(false);
     }
