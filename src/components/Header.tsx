@@ -70,6 +70,16 @@ export default function Header() {
           {isLoggedIn ? (
             <>
               <button
+                onClick={() => router.push('/community')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isDarkMode
+                    ? 'bg-[#1e293b] border border-[#334155] text-white hover:bg-[#2d3a4f]'
+                    : 'bg-white border border-[#e2e8f0] text-gray-700 hover:bg-[#f8fafc]'
+                }`}
+              >
+                커뮤니티
+              </button>
+              <button
                 onClick={() => router.push('/profile')}
                 className={`p-2 rounded-lg transition-colors ${
                   isDarkMode
