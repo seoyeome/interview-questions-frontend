@@ -85,7 +85,7 @@ export default function CommunityPage() {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen pt-20"
       style={{ background: isDarkMode ? '#0f172a' : '#f8fafc' }}
     >
       <Toaster position="top-right" />
