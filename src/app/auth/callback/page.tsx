@@ -1,16 +1,25 @@
 'use client';
 
 import { useEffect, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function AuthCallbackContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // 카카오 OAuth 성공 시 백엔드에서 HttpOnly 쿠키로 토큰 설정됨
-    // 바로 대시보드로 리다이렉트
-    router.push('/dashboard');
-  }, [router]);
+    // URL에서 JWT 토큰 추출
+    const token = searchParams.get('token');
+
+    if (token) {
+      // localStorage에 JWT 저장
+      localStorage.setItem('jwt_token', token);
+      router.push('/dashboard');
+    } else {
+      // 토큰이 없으면 로그인 페이지로
+      router.push('/auth/signin');
+    }
+  }, [router, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
