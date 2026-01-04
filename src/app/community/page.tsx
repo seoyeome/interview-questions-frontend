@@ -47,12 +47,10 @@ export default function CommunityPage() {
         params.append('category', selectedCategory);
       }
 
-      const response = await fetch(`/api/posts?${params}`);
-      if (!response.ok) throw new Error('게시글 조회 실패');
-
-      const data: PostListResponse = await response.json();
-      setPosts(data.content);
-      setTotalPages(data.totalPages);
+      const data = await apiClient.get<PostListResponse>(`/posts?${params}`);
+      const postListResponse = data as unknown as PostListResponse;
+      setPosts(postListResponse.content);
+      setTotalPages(postListResponse.totalPages);
     } catch (error) {
       console.error('게시글 조회 오류:', error);
       toast.error('게시글을 불러오는데 실패했습니다');
