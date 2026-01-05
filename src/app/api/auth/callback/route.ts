@@ -16,12 +16,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/signin?error=no_token', request.url));
   }
 
-  // HttpOnly 쿠키에 JWT 저장
+  // HttpOnly 쿠키에 JWT 저장 (백엔드와 동일한 이름 사용)
   const cookieStore = await cookies();
-  cookieStore.set('auth_token', token, {
+  cookieStore.set('token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'none', // 백엔드와 동일하게 None 사용
     maxAge: 60 * 60 * 24, // 24시간
     path: '/',
   });

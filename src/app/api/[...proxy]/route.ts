@@ -48,9 +48,9 @@ async function proxyRequest(
   proxyPath: string[],
   method: string
 ) {
-  // 쿠키에서 JWT 토큰 가져오기
+  // 쿠키에서 JWT 토큰 가져오기 (백엔드가 설정한 token 쿠키)
   const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
+  const token = cookieStore.get('token')?.value;
 
   // 백엔드 URL 구성
   const path = proxyPath.join('/');
