@@ -17,7 +17,8 @@ export async function GET(request: NextRequest) {
   }
 
   // HttpOnly 쿠키에 JWT 저장
-  cookies().set('auth_token', token, {
+  const cookieStore = await cookies();
+  cookieStore.set('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
