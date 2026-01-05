@@ -44,11 +44,16 @@ export default function Header() {
         localStorage.removeItem('jwt_token');
       }
 
-      setIsLoggedIn(false);
-      window.location.href = '/';
+      // 4. 카카오 로그아웃 (카카오 세션도 삭제)
+      // 카카오 로그아웃 API 호출 후 리다이렉트
+      const KAKAO_LOGOUT_URL = 'https://kauth.kakao.com/oauth/logout';
+      const KAKAO_CLIENT_ID = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID || 'c0ac7b5ce6c0f73e3f9c0ab2fb7c4a53';
+      const LOGOUT_REDIRECT_URI = window.location.origin;
+
+      window.location.href = `${KAKAO_LOGOUT_URL}?client_id=${KAKAO_CLIENT_ID}&logout_redirect_uri=${encodeURIComponent(LOGOUT_REDIRECT_URI)}`;
     } catch (err) {
       console.error('로그아웃 실패:', err);
-      // 에러가 발생해도 로컬 정리
+      // 에러가 발생해도 로컬 정리 후 홈으로
       if (typeof window !== 'undefined') {
         localStorage.removeItem('jwt_token');
       }
