@@ -21,7 +21,7 @@ export default function Header() {
   const checkLoginStatus = async () => {
     try {
       // 간단하게 API 호출로 로그인 여부 확인
-      const response = await apiClient.get('/user/tutorial-status');
+      await apiClient.get('/user/tutorial-status');
       setIsLoggedIn(true);
     } catch (err) {
       setIsLoggedIn(false);
@@ -30,20 +30,25 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      // Next.js API Route 직접 호출 (프록시 통하지 않음)
+      // 1. 백엔드 로그아웃 (Spring Security 세션 무효화)
+      await apiClient.post('/auth/logout');
+
+      // 2. Next.js HttpOnly 쿠키 삭제
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
-      // localStorage 정리 (기존 토큰이 있을 경우)
+
+      // 3. localStorage 정리 (기존 토큰이 있을 경우)
       if (typeof window !== 'undefined') {
         localStorage.removeItem('jwt_token');
       }
+
       setIsLoggedIn(false);
       window.location.href = '/';
     } catch (err) {
       console.error('로그아웃 실패:', err);
-      // 에러가 발생해도 localStorage 정리
+      // 에러가 발생해도 로컬 정리
       if (typeof window !== 'undefined') {
         localStorage.removeItem('jwt_token');
       }
