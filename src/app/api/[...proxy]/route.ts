@@ -86,8 +86,9 @@ async function proxyRequest(
       body,
     });
 
-    // 응답 데이터
-    const data = await response.text();
+    const status = response.status;
+    const hasBody = ![204, 205, 304].includes(status);
+    const data = hasBody ? await response.text() : null;
 
     // 백엔드의 Set-Cookie 헤더 확인 (로그인/로그아웃 관련)
     const backendSetCookie = response.headers.get('set-cookie');
@@ -125,10 +126,14 @@ async function proxyRequest(
     }
 
     // 백엔드 응답을 그대로 전달
+    if (!hasBody) {
+      return new NextResponse(null, { status });
+    }
+
     return new NextResponse(data, {
-      status: response.status,
+      status,
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': response.headers.get('content-type') || 'application/json',
       },
     });
   } catch (error) {
