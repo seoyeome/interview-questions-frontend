@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import { Post } from '@/types/post';
 import { apiClient } from '@/lib/api';
 import toast, { Toaster } from 'react-hot-toast';
+import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const CATEGORY_MAP: Record<string, string> = {
   QUESTION: '질문',
@@ -33,7 +34,6 @@ export default function PostDetailPage() {
   useEffect(() => {
     if (mounted) {
       fetchPost();
-      checkOwnership();
     }
   }, [mounted, postId]);
 
@@ -41,7 +41,9 @@ export default function PostDetailPage() {
     try {
       setLoading(true);
       const data = await apiClient.get(`/posts/${postId}`);
-      setPost(data as unknown as Post);
+      const postData = data as unknown as Post;
+      setPost(postData);
+      await checkOwnership(postData);
     } catch (error) {
       console.error('게시글 조회 오류:', error);
       toast.error('게시글을 불러오는데 실패했습니다');
@@ -50,14 +52,14 @@ export default function PostDetailPage() {
     }
   };
 
-  const checkOwnership = async () => {
+  const checkOwnership = async (targetPost: Post) => {
     try {
       const userData = await apiClient.get('/user/profile');
-      if (post && (userData as any).data?.id === post.userId) {
-        setIsOwner(true);
-      }
+      const currentUserId = (userData as any).data?.id;
+      setIsOwner(currentUserId === targetPost.userId);
     } catch (error) {
       // 로그인하지 않은 경우 무시
+      setIsOwner(false);
     }
   };
 
@@ -153,25 +155,29 @@ export default function PostDetailPage() {
                   </span>
 
                   {isOwner && (
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={handleEdit}
-                        className="px-4 py-2 rounded-lg text-sm transition-all"
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all border"
                         style={{
-                          background: isDarkMode ? '#334155' : '#e0f2fe',
-                          color: isDarkMode ? '#93c5fd' : '#0369a1',
+                          background: isDarkMode ? '#1e293b' : '#f0f9ff',
+                          borderColor: isDarkMode ? '#334155' : '#bae6fd',
+                          color: isDarkMode ? '#bfdbfe' : '#0369a1',
                         }}
                       >
+                        <PencilSquareIcon className="w-4 h-4" />
                         수정
                       </button>
                       <button
                         onClick={handleDelete}
-                        className="px-4 py-2 rounded-lg text-sm transition-all"
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all border"
                         style={{
-                          background: isDarkMode ? '#7f1d1d' : '#fee2e2',
-                          color: isDarkMode ? '#fca5a5' : '#991b1b',
+                          background: isDarkMode ? '#3f1d1d' : '#fef2f2',
+                          borderColor: isDarkMode ? '#7f1d1d' : '#fecaca',
+                          color: isDarkMode ? '#fecaca' : '#991b1b',
                         }}
                       >
+                        <TrashIcon className="w-4 h-4" />
                         삭제
                       </button>
                     </div>
