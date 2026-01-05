@@ -51,8 +51,14 @@ export default function CommunityPage() {
       const postListResponse = data as unknown as PostListResponse;
       setPosts(postListResponse.content);
       setTotalPages(postListResponse.totalPages);
-    } catch (error) {
+    } catch (error: any) {
       console.error('게시글 조회 오류:', error);
+      // 인증 에러 시 로그인 페이지로 리다이렉트
+      if (error?.status === 401) {
+        toast.error('로그인이 필요합니다');
+        router.push('/auth/login');
+        return;
+      }
       toast.error('게시글을 불러오는데 실패했습니다');
     } finally {
       setLoading(false);
