@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes';
 import { useRouter, useParams } from 'next/navigation';
 import Header from '@/components/Header';
 import { Post, PostUpdateRequest } from '@/types/post';
+import { apiClient, ApiError } from '@/lib/api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const CATEGORY_OPTIONS = [
@@ -42,14 +43,12 @@ export default function EditPostPage() {
   const fetchPost = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/posts/${postId}`);
-      if (!response.ok) throw new Error('게시글 조회 실패');
-
-      const data: Post = await response.json();
+      const data = await apiClient.get(`/posts/${postId}`);
+      const postData = data as unknown as Post;
       setFormData({
-        title: data.title,
-        content: data.content,
-        category: data.category,
+        title: postData.title,
+        content: postData.content,
+        category: postData.category,
       });
     } catch (error) {
       console.error('게시글 조회 오류:', error);
@@ -75,33 +74,25 @@ export default function EditPostPage() {
 
     try {
       setSubmitting(true);
-
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('로그인이 필요합니다');
-          router.push('/auth/signin');
-          return;
-        }
-        if (response.status === 403) {
-          toast.error('본인의 게시글만 수정할 수 있습니다');
-          return;
-        }
-        throw new Error('게시글 수정 실패');
-      }
+      await apiClient.put(`/posts/${postId}`, formData);
 
       toast.success('게시글이 수정되었습니다');
       router.push(`/community/${postId}`);
     } catch (error) {
       console.error('게시글 수정 오류:', error);
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          toast.error('로그인이 필요합니다');
+          router.push('/auth/signin');
+          return;
+        }
+        if (error.status === 403) {
+          toast.error('본인의 게시글만 수정할 수 있습니다');
+          return;
+        }
+        toast.error(error.message || '게시글 수정에 실패했습니다');
+        return;
+      }
       toast.error('게시글 수정에 실패했습니다');
     } finally {
       setSubmitting(false);
