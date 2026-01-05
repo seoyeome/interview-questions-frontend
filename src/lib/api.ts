@@ -32,7 +32,7 @@ export class ApiError extends Error {
 
 // API Client
 class ApiClient {
-  private baseUrl = '/api';
+  private baseUrl = '/api/v1';
   private logger = createLogger('API Client');
 
   private async request<T = unknown>(
