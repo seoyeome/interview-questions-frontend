@@ -31,10 +31,18 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await apiClient.post('/auth/logout');
+      // localStorage 정리 (기존 토큰이 있을 경우)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('jwt_token');
+      }
       setIsLoggedIn(false);
       window.location.href = '/';
     } catch (err) {
       console.error('로그아웃 실패:', err);
+      // 에러가 발생해도 localStorage 정리
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('jwt_token');
+      }
       setIsLoggedIn(false);
       window.location.href = '/';
     }

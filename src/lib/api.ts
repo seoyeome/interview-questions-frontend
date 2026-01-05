@@ -32,7 +32,7 @@ export class ApiError extends Error {
 
 // API Client
 class ApiClient {
-  private baseUrl = '/api/v1';
+  private baseUrl = '/api';
   private logger = createLogger('API Client');
 
   private async request<T = unknown>(
@@ -42,14 +42,6 @@ class ApiClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-
-    // localStorage에서 JWT 토큰 가져오기
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('jwt_token');
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    }
 
     const url = `${this.baseUrl}${normalizePath(endpoint)}`;
     this.logger.debug('요청 시작', { url, method: options.method || 'GET' });

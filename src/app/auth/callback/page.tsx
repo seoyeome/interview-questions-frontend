@@ -1,26 +1,10 @@
-'use client';
+// 이 페이지는 더 이상 사용되지 않습니다.
+// OAuth 콜백은 /api/auth/callback API Route에서 처리됩니다.
+// 이 페이지는 OAuth 리다이렉트 중 잠깐 보일 수 있는 로딩 페이지입니다.
 
-import { useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 function AuthCallbackContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    // URL에서 JWT 토큰 추출
-    const token = searchParams.get('token');
-
-    if (token) {
-      // localStorage에 JWT 저장
-      localStorage.setItem('jwt_token', token);
-      router.push('/dashboard');
-    } else {
-      // 토큰이 없으면 로그인 페이지로
-      router.push('/auth/signin');
-    }
-  }, [router, searchParams]);
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
