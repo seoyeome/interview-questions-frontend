@@ -89,6 +89,41 @@ async function proxyRequest(
     // 응답 데이터
     const data = await response.text();
 
+    // 백엔드의 Set-Cookie 헤더 확인 (로그인/로그아웃 관련)
+    const backendSetCookie = response.headers.get('set-cookie');
+
+    // 백엔드가 쿠키를 설정하려고 하면, Next.js에서 직접 쿠키 설정
+    if (backendSetCookie && backendSetCookie.includes('token=')) {
+      // Set-Cookie 헤더 파싱: token=값 또는 token= (빈 값)
+      const tokenMatch = backendSetCookie.match(/token=([^;]*)/);
+      if (tokenMatch) {
+        const tokenValue = tokenMatch[1]; // 빈 문자열일 수 있음
+
+        // Next.js cookies API로 쿠키 설정 또는 삭제
+        const cookieStore = await cookies();
+
+        if (tokenValue && tokenValue.trim() !== '') {
+          // 로그인: 토큰 설정
+          cookieStore.set('token', tokenValue, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax', // Same-Site 구조이므로 lax 사용
+            maxAge: 86400, // 24시간
+            path: '/',
+          });
+        } else {
+          // 로그아웃: 쿠키 삭제
+          cookieStore.set('token', '', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 0,
+            path: '/',
+          });
+        }
+      }
+    }
+
     // 백엔드 응답을 그대로 전달
     return new NextResponse(data, {
       status: response.status,
