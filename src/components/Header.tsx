@@ -30,7 +30,11 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      await apiClient.post('/auth/logout');
+      // Next.js API Route 직접 호출 (프록시 통하지 않음)
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
       // localStorage 정리 (기존 토큰이 있을 경우)
       if (typeof window !== 'undefined') {
         localStorage.removeItem('jwt_token');
