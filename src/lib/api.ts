@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { createLogger } from './logger';
 
 const DEFAULT_BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
@@ -46,14 +47,21 @@ class ApiClient {
     const url = `${this.baseUrl}${normalizePath(endpoint)}`;
     this.logger.debug('요청 시작', { url, method: options.method || 'GET' });
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...(options.headers as Record<string, string>),
-      },
-      credentials: 'include',
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...(options.headers as Record<string, string>),
+        },
+        credentials: 'include',
+      });
+    } catch {
+      this.logger.error('네트워크 연결 실패', { url });
+      toast.error('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.', { id: 'network-error' });
+      throw new Error('네트워크 연결 실패');
+    }
 
     this.logger.debug('응답 받음', { status: response.status });
 
